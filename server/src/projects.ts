@@ -1,10 +1,11 @@
 import { Router, type ErrorRequestHandler } from "express";
 import { z } from "zod";
 import { createAuthMiddleware, type AuthDatabase, type AuthOptions } from "./auth.js";
-import { type Prisma, type PrismaClient } from "./generated/prisma/client.js";
+import { type Prisma } from "./generated/prisma/client.js";
+import { createSourcesRouter, type SourcesDatabase } from "./sources.js";
 
 type ProjectStore = Pick<Prisma.TransactionClient, "project" | "projectMember" | "user" | "$queryRaw">;
-export type ProjectsDatabase = AuthDatabase & ProjectStore & Partial<Pick<PrismaClient, "$transaction">>;
+export type ProjectsDatabase = AuthDatabase & ProjectStore & SourcesDatabase;
 
 const projectInput = z.object({
   name: z.string().trim().min(1).max(200),
@@ -70,6 +71,8 @@ export function createProjectsRouter(db: ProjectsDatabase, options: AuthOptions 
       next();
     });
   }
+
+  router.use("/:id/sources", createSourcesRouter(db));
 
   router.post("/", async (req, res) => {
     const parsed = projectInput.safeParse(req.body);

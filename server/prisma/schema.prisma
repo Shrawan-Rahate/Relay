@@ -25,6 +25,7 @@ model User {
   updatedAt    DateTime        @updatedAt @db.Timestamptz(3)
   memberships  ProjectMember[]
   sessions     AuthSession[]
+  importedSources Source[]
 }
 
 model Project {
@@ -34,6 +35,8 @@ model Project {
   createdAt   DateTime        @default(now()) @db.Timestamptz(3)
   updatedAt   DateTime        @updatedAt @db.Timestamptz(3)
   members     ProjectMember[]
+  sources     Source[]
+  sourceDocuments SourceDocument[]
 }
 
 model ProjectMember {
@@ -62,4 +65,48 @@ model AuthSession {
 
   @@index([userId])
   @@index([expiresAt])
+}
+
+enum SourceType {
+  MARKDOWN
+  CSV
+}
+
+model Source {
+  id              String           @id @default(uuid()) @db.Uuid
+  projectId       String           @db.Uuid
+  importedById    String           @db.Uuid
+  type            SourceType
+  filename        String
+  originalContent String
+  sha256          String           @db.Char(64)
+  byteSize        Int
+  metadata        Json             @default("{}")
+  provenance      Json
+  createdAt       DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime         @updatedAt @db.Timestamptz(3)
+  project         Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  importedBy      User             @relation(fields: [importedById], references: [id], onDelete: Restrict)
+  documents       SourceDocument[]
+
+  @@unique([projectId, sha256])
+  @@unique([id, projectId])
+  @@index([importedById])
+}
+
+model SourceDocument {
+  id        String   @id @default(uuid()) @db.Uuid
+  sourceId  String   @db.Uuid
+  projectId String   @db.Uuid
+  position  Int
+  content   String
+  sha256    String   @db.Char(64)
+  metadata  Json     @default("{}")
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  source    Source   @relation(fields: [sourceId, projectId], references: [id, projectId], onDelete: Cascade)
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceId, position])
+  @@index([projectId])
 }
