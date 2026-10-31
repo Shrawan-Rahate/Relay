@@ -242,7 +242,7 @@ test("database failures return generic errors without exposing internals", async
         return Reflect.get(target, key);
       },
     });
-    const app = createApp({ user: failingUser, authSession: db.authSession });
+    const app = createApp({ ...db, user: failingUser });
     const response = await request(app).post("/api/auth/login").send({ email: "test@relay.test", password });
     assert.equal(response.status, 500);
     assert.deepEqual(response.body, { error: { code: "INTERNAL_ERROR", message: "Unable to complete request" } });

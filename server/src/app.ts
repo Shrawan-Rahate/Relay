@@ -2,9 +2,10 @@ import express, { type ErrorRequestHandler } from "express";
 import cors from "cors";
 import helmet from "helmet";
 import cookieParser from "cookie-parser";
-import { createAuthRouter, type AuthDatabase, type AuthOptions } from "./auth.js";
+import { createAuthRouter, type AuthOptions } from "./auth.js";
+import { createProjectsRouter, type ProjectsDatabase } from "./projects.js";
 
-export function createApp(db: AuthDatabase, options: AuthOptions = {}) {
+export function createApp(db: ProjectsDatabase, options: AuthOptions = {}) {
   const app = express();
   const clientOrigin = options.clientOrigin ?? process.env.CLIENT_ORIGIN ?? "http://localhost:5173";
   app.disable("x-powered-by");
@@ -13,6 +14,7 @@ export function createApp(db: AuthDatabase, options: AuthOptions = {}) {
   app.use(express.json({ limit: "1mb" }));
   app.use(cookieParser());
   app.use("/api/auth", createAuthRouter(db, { ...options, clientOrigin }));
+  app.use("/api/projects", createProjectsRouter(db, { ...options, clientOrigin }));
   app.get("/api/health", (_req, res) => {
     res.status(200).json({ status: "ok", service: "relay-api", timestamp: new Date().toISOString() });
   });
