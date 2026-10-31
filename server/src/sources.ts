@@ -3,6 +3,7 @@ import { Router, type ErrorRequestHandler } from "express";
 import { z } from "zod";
 import type { Prisma, PrismaClient } from "./generated/prisma/client.js";
 import { IngestionError, prepareImport } from "./ingestion.js";
+import { parseGitHubInput, prepareGitHubImport, type GitHubOptions } from "./github.js";
 
 type SourceStore = Pick<Prisma.TransactionClient, "source" | "sourceDocument" | "projectMember" | "$queryRaw">;
 export type SourcesDatabase = SourceStore & Partial<Pick<PrismaClient, "$transaction">>;
@@ -18,7 +19,7 @@ async function membership(db: SourceStore, projectId: string, userId: string) {
   return member;
 }
 
-export function createSourcesRouter(db: SourcesDatabase) {
+export function createSourcesRouter(db: SourcesDatabase, options: GitHubOptions = {}) {
   // Mounted inside the project router: inherits auth, origin checks, and project-id validation.
   const router = Router({ mergeParams: true });
   router.param("sourceId", (_req, res, next, value: string) => {
@@ -27,6 +28,31 @@ export function createSourcesRouter(db: SourcesDatabase) {
       return;
     }
     next();
+  });
+
+  router.post<{ id: string }>("/github", async (req, res) => {
+    const projectId = req.params.id;
+    const userId = res.locals.auth.user.id as string;
+    const checkRole = async (tx: SourceStore) => {
+      const member = await membership(tx, projectId, userId);
+      if (member.role !== "REVIEWER" && member.role !== "OUTGOING") throw new IngestionError(403, "FORBIDDEN", "Reviewer or outgoing role required");
+    };
+    await checkRole(db);
+    const repository = parseGitHubInput(req.body);
+    // Network work happens outside the database transaction and project lock.
+    const { documents, ...data } = await prepareGitHubImport(repository, options);
+    const run = async (tx: SourceStore) => {
+      const rows = await tx.$queryRaw<{ id: string }[]>`SELECT "id" FROM "Project" WHERE "id" = ${projectId}::uuid FOR UPDATE`;
+      if (!rows.length) throw notFound();
+      await checkRole(tx);
+      const id = randomUUID();
+      const created = await tx.source.createMany({ data: { id, projectId, importedById: userId, ...data }, skipDuplicates: true });
+      if (!created.count) throw new IngestionError(409, "SOURCE_EXISTS", "This content is already imported in the project");
+      if (documents.length) await tx.sourceDocument.createMany({ data: documents.map(document => ({ ...document, sourceId: id, projectId })) });
+      return tx.source.findUniqueOrThrow({ where: { id }, include: { documents: { orderBy: { position: "asc" } } } });
+    };
+    const source = db.$transaction ? await db.$transaction(tx => run(tx)) : await run(db);
+    res.status(201).json({ source });
   });
 
   router.post<{ id: string }>("/", async (req, res) => {

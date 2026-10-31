@@ -16,6 +16,7 @@
   "type": "module",
   "private": true,
   "dependencies": {
+    "@octokit/rest": "22.0.1",
     "@prisma/adapter-pg": "7.10.1",
     "@prisma/client": "7.10.1",
     "argon2": "0.45.1",

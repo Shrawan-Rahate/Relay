@@ -4,8 +4,9 @@ import helmet from "helmet";
 import cookieParser from "cookie-parser";
 import { createAuthRouter, type AuthOptions } from "./auth.js";
 import { createProjectsRouter, type ProjectsDatabase } from "./projects.js";
+import type { GitHubOptions } from "./github.js";
 
-export function createApp(db: ProjectsDatabase, options: AuthOptions = {}) {
+export function createApp(db: ProjectsDatabase, options: AuthOptions & GitHubOptions = {}) {
   const app = express();
   const clientOrigin = options.clientOrigin ?? process.env.CLIENT_ORIGIN ?? "http://localhost:5173";
   app.disable("x-powered-by");
