@@ -6,8 +6,10 @@ import { createSourcesRouter, type SourcesDatabase } from "./sources.js";
 import type { GitHubOptions } from "./github.js";
 import { createExtractionsRouter, type ExtractionsDatabase, type ExtractionOptions } from "./extractions.js";
 
+import { createGapsRouter, type GapsDatabase } from "./gaps.js";
+
 type ProjectStore = Pick<Prisma.TransactionClient, "project" | "projectMember" | "user" | "$queryRaw">;
-export type ProjectsDatabase = AuthDatabase & ProjectStore & SourcesDatabase & ExtractionsDatabase;
+export type ProjectsDatabase = AuthDatabase & ProjectStore & SourcesDatabase & ExtractionsDatabase & GapsDatabase;
 
 const projectInput = z.object({
   name: z.string().trim().min(1).max(200),
@@ -74,6 +76,7 @@ export function createProjectsRouter(db: ProjectsDatabase, options: AuthOptions 
     });
   }
 
+  router.use("/:id/gaps", createGapsRouter(db));
   router.use("/:id", createExtractionsRouter(db, options));
   router.use("/:id/sources", createSourcesRouter(db, options));
 
