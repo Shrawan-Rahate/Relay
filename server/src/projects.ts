@@ -10,8 +10,10 @@ import { createGapsRouter, type GapsDatabase } from "./gaps.js";
 
 import { createReviewsRouter, type ReviewsDatabase } from "./reviews.js";
 
+import { createHandoversRouter, type HandoversDatabase } from "./handovers.js";
+
 type ProjectStore = Pick<Prisma.TransactionClient, "project" | "projectMember" | "user" | "$queryRaw">;
-export type ProjectsDatabase = AuthDatabase & ProjectStore & SourcesDatabase & ExtractionsDatabase & GapsDatabase & ReviewsDatabase;
+export type ProjectsDatabase = AuthDatabase & ProjectStore & SourcesDatabase & ExtractionsDatabase & GapsDatabase & ReviewsDatabase & HandoversDatabase;
 
 const projectInput = z.object({
   name: z.string().trim().min(1).max(200),
@@ -78,6 +80,7 @@ export function createProjectsRouter(db: ProjectsDatabase, options: AuthOptions 
     });
   }
 
+  router.use("/:id/handovers", createHandoversRouter(db));
   router.use("/:id", createReviewsRouter(db));
   router.use("/:id/gaps", createGapsRouter(db));
   router.use("/:id", createExtractionsRouter(db, options));
