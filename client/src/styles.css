@@ -428,3 +428,54 @@ form .field-help { margin-top: 10px; }
   .handover-actions > li { padding-left: 8px; }
   .acknowledgment-status { padding-left: 14px; }
 }
+
+.project-switcher { display: flex; flex-direction: column; gap: 8px; font-size: 14px; color: #526449; margin-top: 28px; min-width: 0; }
+.project-switcher select { width: 100%; min-width: 0; max-width: 100%; padding: 11px 8px; font-size: 16px; border: 1px solid #becbb2; border-radius: 6px; background: #f9fbf5; color: var(--color-graphite); }
+.role-switcher { margin-top: 16px; }
+.sidebar-demo-help { font-size: 14px; line-height: 1.6; margin-top: 12px; color: #526449; }
+.sidebar .sidebar-project { margin-top: 12px; }
+.sidebar .sidebar-project nav { margin-top: 0; }
+.auth-page { max-width: 680px; }
+.auth-page .form-state-selector { margin-bottom: 24px; }
+.auth-fields { display: grid; gap: 20px; min-width: 0; }
+.auth-fields:disabled { opacity: .6; }
+.auth-fields .field-help { margin-top: 8px; }
+.checkbox-field { display: flex; align-items: center; gap: 12px; min-height: 44px; }
+.checkbox-field input { width: 20px; height: 20px; accent-color: var(--color-evergreen); }
+.auth-links { display: grid; gap: 12px; margin-top: 28px; }
+.auth-links button { text-align: left; }
+.projects-page, .project-detail-page { max-width: 1120px; }
+.project-list { border-top: 1px solid var(--color-line); }
+.project-list-row { display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 20px; padding: 24px 12px; border-bottom: 1px solid var(--color-line); text-align: left; }
+.project-list-row:hover { background: #edf2e7; }
+.project-list-row > span:first-child { min-width: 0; }
+.project-list-row strong { font-size: 18px; font-weight: 500; }
+.project-list-row span span { display: block; margin-top: 8px; color: var(--color-muted); }
+.project-list-row small { display: block; font-size: 14px; color: #526449; margin-top: 12px; }
+.form-spaced-label { margin-top: 24px; }
+.projects-page form > .button, .project-detail-page form > .button { margin-top: 24px; }
+.projects-page textarea { resize: vertical; min-height: 120px; line-height: 1.7; }
+.projects-page form > .field-help, .project-detail-page form > .field-help { margin-top: 10px; }
+.project-description { margin-top: 16px; }
+.project-facts { margin: 24px 0; }
+.project-facts > div { display: grid; grid-template-columns: minmax(160px, .6fr) minmax(0, 1fr); gap: 20px; padding: 14px 0; border-bottom: 1px solid var(--color-line); }
+.project-facts dt { font-size: 14px; color: #526449; }
+.project-facts dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.membership-form-title { margin-top: 32px; }
+.membership-form-title + p { margin-top: 12px; }
+.member-list { list-style: none; padding: 0; margin-top: 24px; }
+.member-list li { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; padding: 16px 0; border-bottom: 1px solid var(--color-line); }
+.member-list li > span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.member-list .field-help { display: block; }
+.local-project-sample-link { display: flex; margin-top: 24px; }
+.breadcrumb-project { min-width: 0; overflow-wrap: anywhere; }
+.breadcrumbs { min-width: 0; }
+@media (max-width: 600px) {
+  .project-facts > div { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .project-list-row { padding: 20px 8px; }
+  .project-list-row strong, .project-list-row p, .project-detail-page h1, .project-description { overflow-wrap: anywhere; }
+  .auth-fields .button { max-width: 100%; }
+  .form-state-selector select { max-width: 100%; width: 100%; }
+}
+.project-list-row > span:first-child, .project-detail-page h1 { overflow-wrap: anywhere; }
+.breadcrumbs .breadcrumb-project { white-space: normal; text-align: left; max-width: min(360px, 45vw); overflow-wrap: anywhere; }
