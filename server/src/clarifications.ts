@@ -2,6 +2,8 @@ import { Router, type ErrorRequestHandler } from "express";
 import { z } from "zod";
 import { Prisma, type PrismaClient } from "./generated/prisma/client.js";
 
+import { latestReview, reviewedAnswer } from "./review-state.js";
+
 type Store = Pick<Prisma.TransactionClient, "clarificationResponse" | "knowledgeGap" | "projectMember" | "sourceDocument" | "$queryRaw">;
 export type ClarificationsDatabase = Store & Partial<Pick<PrismaClient, "$transaction">>;
 const validText = (max: number) => z.string().min(1).max(max).refine(value => value.trim().length > 0 && !/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(value));
@@ -60,7 +62,7 @@ export function createClarificationsRouter(db: ClarificationsDatabase) {
         status: "PENDING_REVIEW", createdAt: new Date(), evidence: { create: evidence } }, include });
     };
     const answer = db.$transaction ? await db.$transaction(tx => save(tx)) : await save(db);
-    res.status(201).json({ answer });
+    res.status(201).json({ answer: reviewedAnswer({ ...answer, reviews: [] }) });
   });
   router.get<{ id: string; gapId: string }>("/", async (req, res) => {
     const { id: projectId, gapId } = req.params;
@@ -72,8 +74,8 @@ export function createClarificationsRouter(db: ClarificationsDatabase) {
     if (cursor && !previous) throw notFound();
     const answers = await db.clarificationResponse.findMany({ where: { projectId, gapId, ...(previous ? { OR: [
       { createdAt: { gt: previous.createdAt } }, { createdAt: previous.createdAt, id: { gt: previous.id } },
-    ] } : {}) }, orderBy: [{ createdAt: "asc" }, { id: "asc" }], take: limit + 1, include });
-    res.json({ answers: answers.slice(0, limit), nextCursor: answers.length > limit ? answers[limit - 1]!.id : null });
+    ] } : {}) }, orderBy: [{ createdAt: "asc" }, { id: "asc" }], take: limit + 1, include: { ...include, reviews: latestReview } });
+    res.json({ answers: answers.slice(0, limit).map(reviewedAnswer), nextCursor: answers.length > limit ? answers[limit - 1]!.id : null });
   });
   const errors: ErrorRequestHandler = (error: unknown, _req, res, next) => {
     if (error instanceof ClarificationError) { res.status(error.status).json({ error: { code: error.code, message: error.message } }); return; }
