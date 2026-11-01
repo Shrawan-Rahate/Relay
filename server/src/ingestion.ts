@@ -4,10 +4,10 @@ import type { Info } from "csv-parse";
 import { z } from "zod";
 import type { Prisma } from "./generated/prisma/client.js";
 
-const MAX_BYTES = 256 * 1024;
+export const MAX_BYTES = 256 * 1024;
 const MAX_TASKS = 1000;
 const input = z.object({
-  type: z.enum(["MARKDOWN", "CSV"]),
+  type: z.enum(["MARKDOWN", "TXT", "CSV"]),
   filename: z.string().min(1).max(255).regex(/^[^/\\\u0000-\u001f\u007f]+$/),
   content: z.string(),
   metadata: z.record(z.string(), z.json()).default({}).refine(value => Buffer.byteLength(JSON.stringify(value), "utf8") <= 8192),
@@ -29,14 +29,14 @@ export function prepareImport(body: unknown) {
   const bytes = Buffer.from(content, "utf8");
   if (bytes.length > MAX_BYTES) throw new IngestionError(413, "PAYLOAD_TOO_LARGE", "Source content exceeds 256 KiB");
   if (!content.trim() || bytes.toString("utf8") !== content || /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(content)) throw invalid();
-  if (type === "MARKDOWN" ? !/\.(md|markdown)$/i.test(filename) : !/\.csv$/i.test(filename)) throw invalid();
+  if (!(type === "MARKDOWN" ? /\.(md|markdown)$/i : type === "TXT" ? /\.txt$/i : /\.csv$/i).test(filename)) throw invalid();
 
   const documents: Document[] = [];
   const provenance: { [key: string]: Prisma.InputJsonValue } = {
     method: "manual_import", encoding: "utf-8", formatVersion: 1,
-    mediaType: type === "MARKDOWN" ? "text/markdown" : "text/csv",
+    mediaType: type === "MARKDOWN" ? "text/markdown" : type === "TXT" ? "text/plain" : "text/csv",
   };
-  if (type === "MARKDOWN") {
+  if (type !== "CSV") {
     documents.push({ position: 1, content, sha256: sha256(content), metadata: { startByte: 0, endByte: bytes.length } });
   } else {
     let records: CsvRecord[];

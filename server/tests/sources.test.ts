@@ -256,3 +256,99 @@ test("membership and session revocation immediately block source access and impo
     assert.equal((await importSource(app, owner.cookie, owner.projectId, csv)).status, 401);
   });
 });
+
+function uploadSource(app: App, cookie: string, projectId: string, content: string | Buffer, filename = "notes.md", contentType = "text/markdown") {
+  return request(app).post(`/api/projects/${projectId}/sources`).set("Cookie", cookie)
+    .attach("file", Buffer.isBuffer(content) ? content : Buffer.from(content), { filename, contentType });
+}
+
+test("multipart md, txt and csv uploads preserve bytes, filenames, provenance and documents", async () => {
+  await scenario(async (app, db) => {
+    const user = await fixture(db, "OUTGOING");
+    for (const [filename, contentType, type, content] of [
+      ["notes.md", "text/markdown", "MARKDOWN", markdown.content],
+      ["notes.txt", "text/plain", "TXT", "\uFEFFDécision 🧭\r\n  original text\r\n"],
+      ["tasks.csv", "text/csv", "CSV", csv.content],
+    ]) {
+      const result = await uploadSource(app, user.cookie, user.projectId, content!, filename, contentType).field("metadata", JSON.stringify({ origin: "upload fixture" }));
+      assert.equal(result.status, 201, JSON.stringify(result.body));
+      const source = result.body.source;
+      assert.equal(source.filename, filename);
+      assert.deepEqual(source.metadata, { origin: "upload fixture" });
+      assert.equal(source.type, type);
+      assert.equal(source.originalContent, content);
+      assert.equal(source.byteSize, Buffer.byteLength(content!));
+      assert.equal(source.sha256, createHash("sha256").update(content!).digest("hex"));
+      assert.equal(source.importedById, user.id);
+      assert.equal(source.provenance.method, "file_upload");
+      assert.equal(source.provenance.encoding, "utf-8");
+      assert.equal(source.provenance.mediaType, contentType);
+      assert.equal(source.documents.length, type === "CSV" ? 2 : 1);
+      assert.ok(source.documents.every((doc: { projectId: string }) => doc.projectId === user.projectId));
+      if (type !== "CSV") assert.equal(source.documents[0].content, content);
+      assert.equal((await db.source.findUniqueOrThrow({ where: { id: source.id } })).originalContent, content);
+    }
+  });
+});
+
+test("multipart validates UTF-8, file types, MIME, empty/binary content, CSV and form shape without writes", async () => {
+  await scenario(async (app, db) => {
+    const user = await fixture(db);
+    for (const [content, filename, mime] of [
+      [Buffer.from([0xc3, 0x28]), "bad.txt", "text/plain"],
+      [Buffer.from([0xff, 0xfe, 0x41, 0]), "bad.txt", "text/plain"],
+      [Buffer.from("bad\u0000text"), "bad.txt", "text/plain"],
+      [Buffer.from(" \r\n"), "empty.md", "text/markdown"],
+      [Buffer.from("text"), "bad.exe", "text/plain"],
+      [Buffer.from("text"), "bad.txt", "image/png"],
+      [Buffer.from('title\n"unclosed'), "bad.csv", "text/csv"],
+      [Buffer.from("title\n" + "Task\n".repeat(1001)), "bad.csv", "text/csv"],
+    ] as const) {
+      const result = await uploadSource(app, user.cookie, user.projectId, content, filename, mime);
+      assert.equal(result.status, 400, `${filename}: ${JSON.stringify(result.body)}`);
+    }
+    const path = `/api/projects/${user.projectId}/sources`;
+    const traversal = '--relay-boundary\r\nContent-Disposition: form-data; name="file"; filename="../bad.md"\r\nContent-Type: text/markdown\r\n\r\ntext\r\n--relay-boundary--\r\n';
+    assert.equal((await request(app).post(path).set("Cookie", user.cookie).set("Content-Type", "multipart/form-data; boundary=relay-boundary").send(traversal)).status, 400);
+    assert.equal((await request(app).post(path).set("Cookie", user.cookie).field("type", "MARKDOWN")).status, 400);
+    assert.equal((await uploadSource(app, user.cookie, user.projectId, "text").field("unexpected", "value")).status, 400);
+    assert.equal((await uploadSource(app, user.cookie, user.projectId, "text").attach("file", Buffer.from("second"), "second.md")).status, 400);
+    assert.equal((await uploadSource(app, user.cookie, user.projectId, "text").attach("other", Buffer.from("second"), "second.md")).status, 400);
+    assert.equal((await request(app).post(path).set("Cookie", user.cookie).set("Content-Type", "multipart/form-data; boundary=broken").send("broken")).status, 400);
+    assert.equal(await db.source.count({ where: { projectId: user.projectId } }), 0);
+    assert.equal(await db.sourceDocument.count({ where: { projectId: user.projectId } }), 0);
+  });
+});
+
+test("multipart file bytes and CSV task boundaries are enforced", async () => {
+  await scenario(async (app, db) => {
+    const user = await fixture(db);
+    assert.equal((await uploadSource(app, user.cookie, user.projectId, "x".repeat(256 * 1024), "limit.txt", "text/plain")).status, 201);
+    assert.equal((await uploadSource(app, user.cookie, user.projectId, "é".repeat(131073), "large.txt", "text/plain")).status, 413);
+    assert.equal((await uploadSource(app, user.cookie, user.projectId, "x".repeat(1024 * 1024), "huge.txt", "text/plain")).status, 413);
+    const result = await uploadSource(app, user.cookie, user.projectId, "title\n" + "Task\n".repeat(1000), "limit.csv", "text/csv");
+    assert.equal(result.status, 201);
+    assert.equal(result.body.source.documents.length, 1000);
+    assert.equal(await db.source.count({ where: { projectId: user.projectId } }), 2);
+  });
+});
+
+test("multipart reuses JSON deduplication, permissions and project isolation", async () => {
+  await scenario(async (app, db) => {
+    const owner = await fixture(db);
+    const incoming = await fixture(db, "INCOMING", owner.projectId);
+    const outsider = await fixture(db);
+    const path = `/api/projects/${owner.projectId}/sources`;
+    assert.equal((await request(app).post(path).attach("file", Buffer.from("text"), "notes.md")).status, 401);
+    assert.equal((await uploadSource(app, incoming.cookie, owner.projectId, "text")).status, 403);
+    assert.equal((await uploadSource(app, outsider.cookie, owner.projectId, "text")).status, 404);
+    assert.equal((await uploadSource(app, owner.cookie, owner.projectId, "text").set("Origin", "https://attacker.test")).status, 403);
+    assert.equal((await importSource(app, owner.cookie, owner.projectId)).status, 201);
+    assert.equal((await uploadSource(app, owner.cookie, owner.projectId, markdown.content, "renamed.txt", "text/plain")).status, 409);
+    const other = await uploadSource(app, outsider.cookie, outsider.projectId, markdown.content);
+    assert.equal(other.status, 201);
+    assert.equal((await request(app).get(`${path}/${other.body.source.id}`).set("Cookie", owner.cookie)).status, 404);
+    assert.equal(await db.source.count({ where: { projectId: owner.projectId } }), 1);
+    assert.equal(await db.sourceDocument.count({ where: { projectId: owner.projectId } }), 1);
+  });
+});

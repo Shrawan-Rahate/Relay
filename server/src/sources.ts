@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { Router, type ErrorRequestHandler } from "express";
 import { z } from "zod";
 import type { Prisma, PrismaClient } from "./generated/prisma/client.js";
+import { readUpload } from "./uploads.js";
 import { IngestionError, prepareImport } from "./ingestion.js";
 import { parseGitHubInput, prepareGitHubImport, type GitHubOptions } from "./github.js";
 
@@ -58,6 +59,15 @@ export function createSourcesRouter(db: SourcesDatabase, options: GitHubOptions 
   router.post<{ id: string }>("/", async (req, res) => {
     const projectId = req.params.id!;
     const userId = res.locals.auth.user.id as string;
+    const multipart = req.is("multipart/form-data");
+    let body = req.body;
+    if (multipart) {
+      const member = await membership(db, projectId, userId);
+      if (member.role !== "REVIEWER" && member.role !== "OUTGOING") {
+        throw new IngestionError(403, "FORBIDDEN", "Reviewer or outgoing role required");
+      }
+      body = await readUpload(req);
+    }
     const run = async (tx: SourceStore) => {
       // Shares the membership mutation lock: removal cannot race the import's role check.
       const rows = await tx.$queryRaw<{ id: string }[]>`SELECT "id" FROM "Project" WHERE "id" = ${projectId}::uuid FOR UPDATE`;
@@ -66,7 +76,8 @@ export function createSourcesRouter(db: SourcesDatabase, options: GitHubOptions 
       if (member.role !== "REVIEWER" && member.role !== "OUTGOING") {
         throw new IngestionError(403, "FORBIDDEN", "Reviewer or outgoing role required");
       }
-      const { documents, ...data } = prepareImport(req.body);
+      const { documents, ...data } = prepareImport(body);
+      if (multipart) data.provenance.method = "file_upload";
       const id = randomUUID();
       // Database uniqueness, including parallel imports, without aborting the transaction on conflict.
       const created = await tx.source.createMany({ data: { id, projectId, importedById: userId, ...data }, skipDuplicates: true });

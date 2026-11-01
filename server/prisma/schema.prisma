@@ -79,6 +79,7 @@ model AuthSession {
 }
 
 enum SourceType {
+  TXT
   MARKDOWN
   CSV
   GITHUB
