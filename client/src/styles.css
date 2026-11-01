@@ -325,3 +325,57 @@ form .field-help { margin-top: 10px; }
   .local-preview, .feature-demo-note, .analysis-state-message, .claim-item { overflow-wrap: anywhere; }
 }
 @media (prefers-reduced-motion: reduce) { .loading-spinner { animation: none; } }
+
+.workflow-page { max-width: 1120px; }
+.workflow-question-select { flex: 1; min-width: 240px; }
+.workflow-question-select select { width: 100%; max-width: none; }
+.workflow-question { margin-top: 28px; }
+.workflow-question > p { margin-top: 14px; }
+.workflow-section { margin-top: 32px; padding-top: 28px; border-top: 1px solid var(--color-line); }
+.workflow-section > form { margin-top: 24px; }
+.workflow-section > .field-help { margin-top: 12px; }
+.workflow-section form > .field-help { margin-top: 12px; }
+.workflow-section textarea { resize: vertical; line-height: 1.7; min-height: 120px; }
+.workflow-section textarea:focus-visible { outline: 3px solid #527348; outline-offset: 3px; }
+.workflow-evidence { margin: 16px 0; }
+.workflow-evidence > summary { min-height: 44px; }
+.workflow-evidence > .field-label { margin-top: 16px; }
+.workflow-evidence > .field-help { margin-top: 10px; }
+.workflow-quote { padding: 20px 0; border-bottom: 1px solid var(--color-line); }
+.workflow-quote:last-child { border-bottom: 0; }
+.workflow-quote h3 { overflow-wrap: anywhere; }
+.workflow-empty { margin-top: 20px; color: #596456; }
+.preserve-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+.answer-history-item, .decision-history-item { padding: 24px 0; border-bottom: 1px solid var(--color-line); }
+.answer-history-item:last-child, .decision-history-item:last-child { border-bottom: 0; }
+.answer-history-item > p, .decision-history-item > p { margin-top: 12px; }
+.answer-original { margin-top: 20px; color: var(--color-graphite); }
+.effective-preview { border-left: 3px solid #8fa67c; padding: 12px 0 12px 20px; margin-top: 24px; }
+.effective-preview h3 { font-size: 16px; overflow-wrap: anywhere; }
+.effective-preview p { margin-top: 12px; }
+.queue-answer-select { margin-top: 28px; }
+.review-action-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.review-action-options legend { font-size: 16px; margin-bottom: 16px; }
+.review-action-options label { display: flex; align-items: flex-start; gap: 12px; padding: 16px; border: 1px solid var(--color-line); border-radius: 6px; cursor: pointer; }
+.review-action-options label:has(input:checked) { background: #edf2e7; border-color: #8fa67c; }
+.review-action-options input, .resolve-preview input { width: 20px; height: 20px; margin-top: 3px; flex-shrink: 0; accent-color: var(--color-evergreen); }
+.review-action-options strong { display: block; font-size: 16px; font-weight: 500; }
+.review-action-options label span span { display: block; font-size: 14px; color: #596456; margin-top: 6px; }
+.review-field { margin-top: 24px; }
+.review-field .field-help { margin-top: 10px; }
+.review-field .button { margin-top: 10px; }
+.resolve-preview { display: flex; gap: 12px; align-items: flex-start; margin: 24px 0; }
+.resolve-preview .field-help { display: block; margin-top: 6px; }
+.decision-history-item h4 { margin-top: 16px; font-size: 16px; font-weight: 500; }
+.workflow-page .local-preview { margin-bottom: 24px; }
+.workflow-page .text-input { max-width: 100%; }
+.workflow-page .field-error:not(:empty) { margin-bottom: 16px; }
+@media (max-width: 600px) {
+  .review-action-options { grid-template-columns: minmax(0, 1fr); }
+  .workflow-question-select { min-width: 0; flex-basis: 100%; }
+  .workflow-page .gaps-toolbar { align-items: stretch; }
+  .workflow-page .gaps-toolbar > * { min-width: 0; }
+  .workflow-page .list-search { flex-basis: 100%; }
+  .workflow-page h2, .workflow-page h3, .workflow-quote blockquote { overflow-wrap: anywhere; }
+  .effective-preview { padding-left: 14px; }
+}
