@@ -2,13 +2,13 @@ import type { AnswerRequest, EffectiveReviewStatus, ReviewedAnswer, ReviewReques
 import { gaps, sources } from './demo';
 
 export interface DemoAnswerEvidence { sourceId: string; quote: string }
-export interface LocalDecision { sequence: number; request: ReviewRequest }
+export interface LocalDecision { sequence: number; previewOrder: number; request: ReviewRequest }
 export type DemoAnswer = Pick<ReviewedAnswer, 'id' | 'gapId' | 'answerText' | 'status'> & {
   origin: 'fixture' | 'local'; evidence: DemoAnswerEvidence[]; decisions: LocalDecision[];
 };
 export const initialAnswers: DemoAnswer[] = [
-  { id: 'demo-answer-1', gapId: gaps[0].id, answerText: 'The notes do not establish permanent retry ownership. Next action: confirm the accountable team and document the alert escalation path.', status: 'PENDING_REVIEW', origin: 'fixture', evidence: [{ ...gaps[0].evidence[1] }], decisions: [] },
-  { id: 'demo-answer-2', gapId: gaps[3].id, answerText: 'The transition notes distinguish internal testing from external release. Next action: confirm the privacy review before external release.', status: 'PENDING_REVIEW', origin: 'fixture', evidence: [{ ...gaps[3].evidence[0] }], decisions: [] },
+  { id: 'demo-answer-1', gapId: gaps[0].id, answerText: 'The notes do not establish permanent retry ownership.\n\nNext action: confirm the accountable team and document the alert escalation path.', status: 'PENDING_REVIEW', origin: 'fixture', evidence: [{ ...gaps[0].evidence[1] }], decisions: [] },
+  { id: 'demo-answer-2', gapId: gaps[3].id, answerText: 'The transition notes distinguish internal testing from external release.\n\nNext action: confirm the privacy review before external release.', status: 'PENDING_REVIEW', origin: 'fixture', evidence: [{ ...gaps[3].evidence[0] }], decisions: [] },
 ];
 export function effectiveAnswer(answer: DemoAnswer): { status: EffectiveReviewStatus; text: string | null } {
   const decision = answer.decisions.at(-1)?.request;
