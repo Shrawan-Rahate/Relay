@@ -4,9 +4,10 @@ import { createAuthMiddleware, type AuthDatabase, type AuthOptions } from "./aut
 import { type Prisma } from "./generated/prisma/client.js";
 import { createSourcesRouter, type SourcesDatabase } from "./sources.js";
 import type { GitHubOptions } from "./github.js";
+import { createExtractionsRouter, type ExtractionsDatabase, type ExtractionOptions } from "./extractions.js";
 
 type ProjectStore = Pick<Prisma.TransactionClient, "project" | "projectMember" | "user" | "$queryRaw">;
-export type ProjectsDatabase = AuthDatabase & ProjectStore & SourcesDatabase;
+export type ProjectsDatabase = AuthDatabase & ProjectStore & SourcesDatabase & ExtractionsDatabase;
 
 const projectInput = z.object({
   name: z.string().trim().min(1).max(200),
@@ -51,7 +52,7 @@ async function withReviewerLock<T>(db: ProjectsDatabase, projectId: string, user
   return db.$transaction ? db.$transaction(tx => run(tx)) : run(db);
 }
 
-export function createProjectsRouter(db: ProjectsDatabase, options: AuthOptions & GitHubOptions = {}) {
+export function createProjectsRouter(db: ProjectsDatabase, options: AuthOptions & GitHubOptions & ExtractionOptions = {}) {
   const router = Router();
   const clientOrigin = options.clientOrigin ?? process.env.CLIENT_ORIGIN ?? "http://localhost:5173";
   router.use((_req, res, next) => { res.setHeader("Cache-Control", "no-store"); next(); });
@@ -73,6 +74,7 @@ export function createProjectsRouter(db: ProjectsDatabase, options: AuthOptions 
     });
   }
 
+  router.use("/:id", createExtractionsRouter(db, options));
   router.use("/:id/sources", createSourcesRouter(db, options));
 
   router.post("/", async (req, res) => {

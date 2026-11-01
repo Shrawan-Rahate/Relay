@@ -25,6 +25,7 @@ model User {
   updatedAt    DateTime        @updatedAt @db.Timestamptz(3)
   memberships  ProjectMember[]
   sessions     AuthSession[]
+  extractionRuns ExtractionRun[]
   importedSources Source[]
 }
 
@@ -36,6 +37,7 @@ model Project {
   updatedAt   DateTime        @updatedAt @db.Timestamptz(3)
   members     ProjectMember[]
   sources     Source[]
+  extractionRuns ExtractionRun[]
   sourceDocuments SourceDocument[]
 }
 
@@ -108,6 +110,85 @@ model SourceDocument {
   source    Source   @relation(fields: [sourceId, projectId], references: [id, projectId], onDelete: Cascade)
   project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
+  evidence ClaimEvidence[]
+
+  @@unique([id, projectId])
   @@unique([sourceId, position])
   @@index([projectId])
+}
+
+
+enum ExtractionStatus {
+  RUNNING
+  SUCCEEDED
+  FAILED
+}
+
+enum ClaimType {
+  DECISION
+  OWNER
+  DEPENDENCY
+  STATUS
+  RISK
+}
+
+enum ClaimStatus {
+  UNVERIFIED
+}
+
+model ExtractionRun {
+  id            String @id @default(uuid()) @db.Uuid
+  projectId     String @db.Uuid
+  requestedById String @db.Uuid
+  provider      String @default("gemini")
+  model         String
+  modelVersion  String?
+  provenance    Json
+  status        ExtractionStatus @default(RUNNING)
+  errorCode     String?
+  errorMessage  String?
+  startedAt     DateTime @default(now()) @db.Timestamptz(3)
+  completedAt   DateTime? @db.Timestamptz(3)
+  createdAt     DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime @updatedAt @db.Timestamptz(3)
+  project       Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  requestedBy   User @relation(fields: [requestedById], references: [id], onDelete: Restrict)
+  claims        KnowledgeClaim[]
+
+  @@unique([id, projectId])
+  @@index([projectId, createdAt])
+  @@index([requestedById])
+}
+
+model KnowledgeClaim {
+  id        String @id @default(uuid()) @db.Uuid
+  projectId String @db.Uuid
+  runId     String @db.Uuid
+  type      ClaimType
+  text      String
+  status    ClaimStatus @default(UNVERIFIED)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  run       ExtractionRun @relation(fields: [runId, projectId], references: [id, projectId], onDelete: Cascade)
+  evidence  ClaimEvidence[]
+
+  @@unique([id, projectId])
+  @@index([projectId, createdAt])
+  @@index([runId, projectId])
+}
+
+model ClaimEvidence {
+  id         String @id @default(uuid()) @db.Uuid
+  projectId  String @db.Uuid
+  claimId    String @db.Uuid
+  documentId String @db.Uuid
+  quote      String
+  startOffset Int
+  endOffset   Int
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+  claim      KnowledgeClaim @relation(fields: [claimId, projectId], references: [id, projectId], onDelete: Cascade)
+  document   SourceDocument @relation(fields: [documentId, projectId], references: [id, projectId], onDelete: Restrict)
+
+  @@index([claimId, projectId])
+  @@index([documentId, projectId])
 }
