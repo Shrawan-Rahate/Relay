@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { Router, type ErrorRequestHandler } from "express";
 import { z } from "zod";
+import { evidenceDocument, evidenceReference } from "./evidence.js";
 import { Prisma, type PrismaClient, type ProjectRole } from "./generated/prisma/client.js";
 
 type Store = Pick<Prisma.TransactionClient, "handoverSnapshot" | "handoverReceipt" | "reviewDecision" | "knowledgeGap" | "projectMember" | "$queryRaw">;
@@ -57,12 +58,12 @@ async function buildContent(tx: Store, projectId: string, publishedAt: Date) {
     select: { id: true, action: true, correctedText: true, reviewerId: true, sequence: true, createdAt: true,
       reviewer: { select: { name: true } }, response: { select: { id: true, gapId: true, answerText: true,
         reviews: { orderBy: { sequence: "desc" }, take: 1, select: { id: true } },
-        evidence: { orderBy: { id: "asc" }, take: 11, select: { id: true, documentId: true, quote: true, documentSha256: true, startOffset: true, endOffset: true } } } } } }) : [];
+        evidence: { orderBy: { id: "asc" }, take: 11, select: { id: true, documentId: true, quote: true, documentSha256: true, startOffset: true, endOffset: true, document: evidenceDocument } } } } } }) : [];
   const gaps = await tx.knowledgeGap.findMany({ where: { projectId, status: "OPEN" }, orderBy: { id: "asc" }, take: 1001, select: { id: true, category: true, question: true } });
   if (gaps.length > 1000) throw new HandoverError(413, "HANDOVER_TOO_LARGE", "Publication supports at most 1000 unresolved gaps");
   const seen = new Set<string>();
   const confirmedKnowledge = [];
-  const nextActions: { text: string; answerId: string; reviewDecisionId: string }[] = [];
+  const nextActions: Prisma.InputJsonObject[] = [];
   for (const decision of decisions) {
     const response = decision.response;
     // Finality alone is insufficient: the approval must still be the answer's latest decision.
@@ -70,15 +71,17 @@ async function buildContent(tx: Store, projectId: string, publishedAt: Date) {
     seen.add(response.gapId);
     const text = decision.action === "EDIT" ? decision.correctedText : response.answerText;
     if (!text?.trim() || response.evidence.length > 10) throw new HandoverError(409, "INVALID_APPROVED_CONTENT", "Approved content could not be published safely");
-    confirmedKnowledge.push({ status: "CONFIRMED", gapId: response.gapId, answerId: response.id, text,
+    const knowledge = { status: "CONFIRMED", gapId: response.gapId, answerId: response.id, text,
       review: { decisionId: decision.id, action: decision.action, reviewerId: decision.reviewerId, reviewerName: decision.reviewer.name,
         sequence: decision.sequence, reviewedAt: decision.createdAt.toISOString() },
       evidence: response.evidence.map(item => ({ evidenceId: item.id, documentId: item.documentId, quote: item.quote,
-        documentSha256: item.documentSha256, startOffset: item.startOffset, endOffset: item.endOffset })) });
+        documentSha256: item.documentSha256, startOffset: item.startOffset, endOffset: item.endOffset, ...evidenceReference(item.document, projectId) })) };
+    confirmedKnowledge.push(knowledge);
     // Copy explicit action lines verbatim; no inference of tasks, owners or dates.
-    for (const line of text.split(/\r?\n/)) {
-      const match = line.match(/^\s*(?:[-*]\s*)?Next action:\s*(\S.*?)\s*$/i);
-      if (match) nextActions.push({ text: match[1]!, answerId: response.id, reviewDecisionId: decision.id });
+    for (const [index, line] of text.split(/\r?\n/).entries()) {
+      const match = line.match(/^[ \t]*(?:[-*][ \t]*)?Next action:[ \t]?(.*)$/i);
+      if (match?.[1]?.trim()) nextActions.push({ order: nextActions.length + 1, text: match[1], lineNumber: index + 1,
+        answerId: response.id, reviewDecisionId: decision.id, review: knowledge.review, evidence: knowledge.evidence });
     }
   }
   return { schemaVersion: 1, publishedAt: publishedAt.toISOString(), confirmedKnowledge,

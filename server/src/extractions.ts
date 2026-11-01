@@ -1,6 +1,7 @@
 import { GoogleGenAI, type GenerateContentParameters } from "@google/genai";
 import { Router, type ErrorRequestHandler } from "express";
 import { z } from "zod";
+import { evidenceDocument, withEvidenceReferences } from "./evidence.js";
 import { Prisma, type PrismaClient } from "./generated/prisma/client.js";
 
 type Store = Pick<Prisma.TransactionClient, "extractionRun" | "knowledgeClaim" | "sourceDocument" | "projectMember" | "$queryRaw">;
@@ -40,7 +41,7 @@ async function locked<T>(db: ExtractionsDatabase, projectId: string, userId: str
   };
   return db.$transaction ? db.$transaction(tx => run(tx)) : run(db);
 }
-const evidenceInclude = { evidence: { orderBy: { id: "asc" as const } } };
+const evidenceInclude = { evidence: { orderBy: { id: "asc" as const }, include: { document: evidenceDocument } } };
 
 export function createExtractionsRouter(db: ExtractionsDatabase, options: ExtractionOptions = {}) {
   // Parent project router provides authentication, origin protection and project UUID validation.
@@ -105,7 +106,7 @@ export function createExtractionsRouter(db: ExtractionsDatabase, options: Extrac
           status: "SUCCEEDED", completedAt: new Date(), modelVersion: response.modelVersion?.slice(0, 200), claims: { create: claims },
         }, include: { claims: { include: evidenceInclude } } });
       });
-      res.status(201).json({ run: completed });
+      res.status(201).json({ run: { ...completed, claims: completed.claims.map(claim => withEvidenceReferences(claim, projectId)) } });
     } catch (error) {
       const safe = error instanceof ExtractionError ? error : new ExtractionError(502, "AI_EXTRACTION_FAILED", "Unable to complete AI extraction");
       const failed = await db.extractionRun.update({ where: { id: run.id, projectId }, data: { status: "FAILED", completedAt: new Date(), errorCode: safe.code, errorMessage: safe.message } });
@@ -119,7 +120,7 @@ export function createExtractionsRouter(db: ExtractionsDatabase, options: Extrac
     if (!z.uuid().safeParse(req.params.runId).success) throw new ExtractionError(400, "INVALID_INPUT", "Invalid extraction ID");
     const run = await db.extractionRun.findFirst({ where: { id: req.params.runId, projectId: req.params.id }, include: { claims: { include: evidenceInclude } } });
     if (!run) throw missing();
-    res.json({ run });
+    res.json({ run: { ...run, claims: run.claims.map(claim => withEvidenceReferences(claim, req.params.id)) } });
   });
   router.get<{ id: string }>("/claims", async (req, res) => {
     await member(db, req.params.id, res.locals.auth.user.id);
@@ -129,7 +130,7 @@ export function createExtractionsRouter(db: ExtractionsDatabase, options: Extrac
     const claims = await db.knowledgeClaim.findMany({ where: { projectId: req.params.id, ...(cursor ? { id: { gt: cursor } } : {}) },
       take: limit + 1, orderBy: { id: "asc" }, include: { ...evidenceInclude, run: { select: { provider: true, model: true, modelVersion: true, provenance: true } } } });
     const more = claims.length > limit;
-    res.json({ claims: claims.slice(0, limit), nextCursor: more ? claims[limit - 1]!.id : null });
+    res.json({ claims: claims.slice(0, limit).map(claim => withEvidenceReferences(claim, req.params.id)), nextCursor: more ? claims[limit - 1]!.id : null });
   });
   const errors: ErrorRequestHandler = (error: unknown, _req, res, next) => {
     if (error instanceof ExtractionError) { res.status(error.status).json({ error: { code: error.code, message: error.message } }); return; }

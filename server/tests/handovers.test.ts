@@ -222,3 +222,45 @@ test("failed publication and acknowledgement remain atomic and return safe error
   const badAck = await acknowledge(failing, made.body.handover.id); assert.equal(badAck.status, 500); assert.doesNotMatch(JSON.stringify(badAck.body), /credentials|pending answer secret/);
   assert.equal(await db.handoverReceipt.count({ where: { projectId: f.reviewer.projectId } }), 0);
 }));
+
+test("continuation actions preserve approved order, exact text, frozen evidence and reviewer provenance", async () => scenario(async db => {
+  const f = await fixture(db); const firstGap = await gap(db, f); const secondGap = await gap(db, f);
+  const older = await response(f, firstGap.id, "Next action: Third action.  ", "APPROVE");
+  const newer = await response(f, secondGap.id, "ORIGINAL SECRET\nNext action: Unapproved action", "EDIT", "Next action: First action.\r\n- Next action: Second action.\nNot a Next action: Ignore\nNext action:   ");
+  await db.reviewDecision.update({ where: { id: older.decision.id }, data: { createdAt: new Date("2026-01-01") } });
+  await db.reviewDecision.update({ where: { id: newer.decision.id }, data: { createdAt: new Date("2026-01-02") } });
+  const open = await gap(db, f, "UNKNOWN question");
+  await response(f, open.id, "Next action: PENDING ACTION");
+  await response(f, open.id, "Next action: REJECTED ACTION", "REJECT");
+  await response(f, open.id, "Next action: DEFERRED ACTION", "DEFER");
+  const sourceId = f.document.sourceId;
+  await db.source.update({ where: { id: sourceId }, data: { type: "GITHUB" } });
+  const githubUrl = "https://github.com/relay/example/blob/main/handoff.md";
+  await db.sourceDocument.update({ where: { id: f.document.id }, data: { metadata: { githubUrl, secret: "RESTRICTED METADATA" } } });
+  const made = await publish(f); assert.equal(made.status, 201);
+  const content = made.body.handover.content;
+  assert.deepEqual(content.nextActions.map((item: { order: number; text: string }) => [item.order, item.text]), [[1, "First action."], [2, "Second action."], [3, "Third action.  "]]);
+  assert.deepEqual(content.nextActions.map((item: { lineNumber: number }) => item.lineNumber), [1, 2, 1]);
+  for (const action of content.nextActions) {
+    const knowledge = content.confirmedKnowledge.find((item: { answerId: string }) => item.answerId === action.answerId);
+    assert.deepEqual(action.review, knowledge.review); assert.deepEqual(action.evidence, knowledge.evidence);
+    assert.equal(action.reviewDecisionId, knowledge.review.decisionId);
+    const evidence = action.evidence[0];
+    assert.equal(evidence.sourceId, sourceId); assert.equal(evidence.filename, "handoff.md"); assert.equal(evidence.sourceType, "GITHUB");
+    assert.equal(evidence.quote, "Ada owns deployment."); assert.equal(evidence.githubUrl, githubUrl);
+    const resolved = await request(f.app).get(evidence.documentUrl).set("Cookie", f.incoming.cookie);
+    assert.equal(resolved.status, 200); assert.equal(resolved.body.document.id, f.document.id);
+    assert.equal(resolved.body.document.content.slice(evidence.startOffset, evidence.endOffset), evidence.quote);
+  }
+  assert.ok(content.unresolvedGaps.some((item: { status: string; gapId: string }) => item.gapId === open.id && item.status === "UNKNOWN"));
+  for (const who of [f.reviewer, f.outgoing, f.incoming]) {
+    const read = await details(f, made.body.handover.id, who); assert.equal(read.status, 200); assert.deepEqual(read.body.handover.content, content);
+    assert.doesNotMatch(JSON.stringify(read.body), /ORIGINAL SECRET|Unapproved action|PENDING ACTION|REJECTED ACTION|DEFERRED ACTION|RESTRICTED METADATA|PRIVATE REVIEW REASON/);
+  }
+  const other = await fixture(db);
+  assert.equal((await request(f.app).get(content.nextActions[0].evidence[0].documentUrl).set("Cookie", other.incoming.cookie)).status, 404);
+  await db.sourceDocument.update({ where: { id: f.document.id }, data: { metadata: { githubUrl: "javascript:alert(1)" } } });
+  assert.deepEqual((await details(f, made.body.handover.id)).body.handover.content, content);
+  const next = await publish(f); assert.equal(next.status, 201);
+  assert.equal(next.body.handover.content.nextActions[0].evidence[0].githubUrl, null);
+}));

@@ -99,6 +99,18 @@ export function createSourcesRouter(db: SourcesDatabase, options: GitHubOptions 
     res.json({ sources });
   });
 
+  router.get<{ id: string; sourceId: string; documentId: string }>("/:sourceId/documents/:documentId", async (req, res) => {
+    if (!z.uuid().safeParse(req.params.documentId).success) {
+      throw new IngestionError(400, "INVALID_INPUT", "Invalid document id");
+    }
+    const document = await db.sourceDocument.findFirst({
+      where: { id: req.params.documentId, sourceId: req.params.sourceId, projectId: req.params.id,
+        project: { members: { some: { userId: res.locals.auth.user.id } } } },
+    });
+    if (!document) throw notFound();
+    res.json({ document });
+  });
+
   router.get<{ id: string; sourceId: string }>("/:sourceId", async (req, res) => {
     const source = await db.source.findFirst({
       where: { id: req.params.sourceId, projectId: req.params.id!, project: { members: { some: { userId: res.locals.auth.user.id } } } },

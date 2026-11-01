@@ -184,3 +184,45 @@ test("full Prisma client commits extraction atomically and permits empty success
     await prisma.user.delete({ where: { id: membership.userId } });
   }
 });
+
+test("claim evidence resolves same-project documents and exposes only safe original GitHub URLs", async () => scenario(async db => {
+  let id = "";
+  const app = createApp(db, mockOptions(async () => ({ text: JSON.stringify({ claims: [claim(id)] }) })));
+  const owner = await fixture(db); id = await source(app, owner);
+  const document = await db.sourceDocument.findUniqueOrThrow({ where: { id } });
+  const sourceId = document.sourceId;
+  const githubUrl = "https://github.com/relay/example/issues/7";
+  await db.source.update({ where: { id: sourceId }, data: { type: "GITHUB", metadata: { githubUrl: "https://github.com/relay/example", secret: "DO NOT COPY METADATA" } } });
+  await db.sourceDocument.update({ where: { id }, data: { metadata: { githubUrl, secret: "DO NOT COPY METADATA" } } });
+  const created = await request(app).post(`/api/projects/${owner.projectId}/extractions`).set("Cookie", owner.cookie).send({ documentIds: [id] });
+  assert.equal(created.status, 201);
+  const reader = await fixture(db, "INCOMING", owner.projectId); const outsider = await fixture(db);
+  const listed = await request(app).get(`/api/projects/${owner.projectId}/claims`).set("Cookie", reader.cookie);
+  const detail = await request(app).get(`/api/projects/${owner.projectId}/extractions/${created.body.run.id}`).set("Cookie", reader.cookie);
+  for (const item of [created.body.run.claims[0], listed.body.claims[0], detail.body.run.claims[0]]) {
+    assert.equal(item.status, "UNVERIFIED");
+    const evidence = item.evidence[0];
+    assert.equal(evidence.sourceId, sourceId); assert.equal(evidence.filename, "notes.md"); assert.equal(evidence.sourceType, "GITHUB");
+    assert.equal(evidence.quote, "Ada owns deployment."); assert.equal(evidence.githubUrl, githubUrl);
+    assert.equal(evidence.sourceUrl, `/api/projects/${owner.projectId}/sources/${sourceId}`);
+    assert.equal(evidence.documentUrl, `${evidence.sourceUrl}/documents/${id}`);
+    assert.ok(!JSON.stringify(item).includes("DO NOT COPY"));
+    const resolved = await request(app).get(evidence.documentUrl).set("Cookie", reader.cookie);
+    assert.equal(resolved.status, 200); assert.equal(resolved.body.document.id, id);
+    assert.equal(resolved.body.document.content.slice(evidence.startOffset, evidence.endOffset), evidence.quote);
+    assert.equal((await request(app).get(evidence.sourceUrl).set("Cookie", reader.cookie)).status, 200);
+    assert.equal((await request(app).get(evidence.documentUrl)).status, 401);
+    assert.equal((await request(app).get(evidence.documentUrl).set("Cookie", outsider.cookie)).status, 404);
+    assert.equal((await request(app).get(evidence.documentUrl.replace(owner.projectId, outsider.projectId)).set("Cookie", outsider.cookie)).status, 404);
+  }
+  const sourcePath = `/api/projects/${owner.projectId}/sources`;
+  assert.equal((await request(app).get(`${sourcePath}/${randomUUID()}/documents/${id}`).set("Cookie", reader.cookie)).status, 404);
+  assert.equal((await request(app).get(`${sourcePath}/${sourceId}/documents/bad`).set("Cookie", reader.cookie)).status, 400);
+  for (const unsafe of ["javascript:alert(1)", "http://github.com/relay/example", "https://github.com.evil.test/relay", "https://user:secret@github.com/relay/example", "https://github.com/relay/example\n", null]) {
+    await db.sourceDocument.update({ where: { id }, data: { metadata: { githubUrl: unsafe } } });
+    const read = await request(app).get(`/api/projects/${owner.projectId}/claims`).set("Cookie", reader.cookie);
+    assert.equal(read.body.claims[0].evidence[0].githubUrl, null);
+  }
+  await db.projectMember.deleteMany({ where: { projectId: owner.projectId, role: "INCOMING" } });
+  assert.equal((await request(app).get(`${sourcePath}/${sourceId}/documents/${id}`).set("Cookie", reader.cookie)).status, 404);
+}));
