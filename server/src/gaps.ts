@@ -4,8 +4,10 @@ import { z } from "zod";
 import { Prisma, type PrismaClient } from "./generated/prisma/client.js";
 import { detectKnowledgeGaps } from "./gap-detection.js";
 
+import { createClarificationsRouter, type ClarificationsDatabase } from "./clarifications.js";
+
 type Store = Pick<Prisma.TransactionClient, "knowledgeGap" | "knowledgeGapClaim" | "knowledgeClaim" | "projectMember" | "$queryRaw">;
-export type GapsDatabase = Store & Partial<Pick<PrismaClient, "$transaction">>;
+export type GapsDatabase = Store & ClarificationsDatabase & Partial<Pick<PrismaClient, "$transaction">>;
 const MAX_CLAIMS = 1000;
 const MAX_FINDINGS = 200;
 const include = { claimLinks: { orderBy: { claimId: "asc" as const } } };
@@ -93,6 +95,7 @@ export function createGapsRouter(db: GapsDatabase) {
     const gaps = await db.knowledgeGap.findMany({ where: { projectId: req.params.id, status, category, ...(cursor ? { id: { gt: cursor } } : {}) }, orderBy: { id: "asc" }, take: limit + 1, include });
     res.json({ gaps: gaps.slice(0, limit).map(serialize), nextCursor: gaps.length > limit ? gaps[limit - 1]!.id : null });
   });
+  router.use("/:gapId/answers", createClarificationsRouter(db));
   router.get<{ id: string; gapId: string }>("/:gapId", async (req, res) => {
     await membership(db, req.params.id, res.locals.auth.user.id);
     if (!z.uuid().safeParse(req.params.gapId).success) throw new GapError(400, "INVALID_INPUT", "Invalid knowledge gap ID");

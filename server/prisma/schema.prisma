@@ -26,6 +26,7 @@ model User {
   memberships  ProjectMember[]
   sessions     AuthSession[]
   extractionRuns ExtractionRun[]
+  clarificationResponses ClarificationResponse[]
   importedSources Source[]
 }
 
@@ -39,6 +40,7 @@ model Project {
   sources     Source[]
   extractionRuns ExtractionRun[]
   knowledgeGaps KnowledgeGap[]
+  clarificationResponses ClarificationResponse[]
   sourceDocuments SourceDocument[]
 }
 
@@ -112,6 +114,7 @@ model SourceDocument {
   project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   evidence ClaimEvidence[]
+  clarificationEvidence ClarificationResponseEvidence[]
 
   @@unique([id, projectId])
   @@unique([sourceId, position])
@@ -221,6 +224,7 @@ model KnowledgeGap {
   updatedAt   DateTime @updatedAt @db.Timestamptz(3)
   project     Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
   claimLinks  KnowledgeGapClaim[]
+  clarificationResponses ClarificationResponse[]
 
   @@unique([id, projectId])
   @@unique([projectId, fingerprint])
@@ -239,4 +243,45 @@ model KnowledgeGapClaim {
   @@id([gapId, claimId])
   @@index([claimId, projectId])
   @@index([gapId, projectId])
+}
+
+
+enum ClarificationResponseStatus {
+  PENDING_REVIEW
+}
+
+model ClarificationResponse {
+  id         String @id @default(uuid()) @db.Uuid
+  projectId  String @db.Uuid
+  gapId      String @db.Uuid
+  authorId   String @db.Uuid
+  answerText String
+  status     ClarificationResponseStatus @default(PENDING_REVIEW)
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+  project    Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  gap        KnowledgeGap @relation(fields: [gapId, projectId], references: [id, projectId], onDelete: Cascade)
+  author     User @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  evidence   ClarificationResponseEvidence[]
+
+  @@unique([id, projectId])
+  @@index([projectId, gapId, createdAt, id])
+  @@index([gapId, projectId])
+  @@index([authorId])
+}
+
+model ClarificationResponseEvidence {
+  id             String @id @default(uuid()) @db.Uuid
+  responseId     String @db.Uuid
+  projectId      String @db.Uuid
+  documentId     String @db.Uuid
+  quote          String
+  startOffset    Int
+  endOffset      Int
+  documentSha256 String @db.Char(64)
+  createdAt      DateTime @default(now()) @db.Timestamptz(3)
+  response       ClarificationResponse @relation(fields: [responseId, projectId], references: [id, projectId], onDelete: Cascade)
+  document       SourceDocument @relation(fields: [documentId, projectId], references: [id, projectId], onDelete: Restrict)
+
+  @@index([responseId, projectId])
+  @@index([documentId, projectId])
 }
