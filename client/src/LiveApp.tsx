@@ -6,6 +6,7 @@ import { ApiError, RelayApi, projectFrom } from './lib/api';
 import Auth from './pages/Auth';
 import LiveProjects from './pages/LiveProjects';
 import LiveOverview from './pages/LiveOverview';
+import LiveSourceManager from './pages/LiveSourceManager';
 import ProjectNavigation from './components/ProjectNavigation';
 import ThemeToggle from './components/ThemeToggle';
 import { Button } from './components/ui';
@@ -65,11 +66,11 @@ function Workspace({ page, navigate, onLogout, renderProjectPage }: { page: Excl
     return () => { active = false; };
   }, [api, refresh, selectedId]);
   useEffect(() => {
-    let active = true; setSelected(null);
+    let active = true;
     if (!selectedId) return;
     setSelectionLoading(true); setError(undefined);
     api.project(selectedId).then(project => { if (active) setSelected(project); })
-      .catch(error => { if (active) setError(error instanceof Error ? error.message : 'Project access could not be verified.'); })
+      .catch(error => { if (active) { setSelected(null); setError(error instanceof Error ? error.message : 'Project access could not be verified.'); } })
       .finally(() => { if (active) setSelectionLoading(false); });
     return () => { active = false; };
   }, [api, selectedId, refresh]);
@@ -109,6 +110,7 @@ function Workspace({ page, navigate, onLogout, renderProjectPage }: { page: Excl
     if (!selected) return <div className="feature-page"><h1>Select a project</h1><Button onClick={() => go('projects')}>All projects<ArrowRight size={18} /></Button></div>;
     if (!canViewPage(page, selected.role)) return <div className="feature-page"><h1>Access restricted</h1><p>Your current project role does not allow this page.</p><Button onClick={refreshAccess}>Refresh project access</Button><Button onClick={() => go('overview')}>Project overview</Button></div>;
     if (page === 'overview') return <LiveOverview project={selected} onNavigate={go} />;
+    if (page === 'sources') return null; // Kept mounted below while membership is revalidated.
     if (renderProjectPage) return renderProjectPage({ project: selected, page, api, refreshAccess });
     return <div className="feature-page"><div className="page-heading"><h1>{page === 'project-detail' ? selected.name : projectPages.find(item => item.id === page)?.label}</h1><p>{selected.description || 'No project description provided.'}</p></div><dl className="project-facts"><div><dt>Your project role</dt><dd>{roleLabels[selected.role]}</dd></div><div><dt>Signed in as</dt><dd>{state.user?.email}</dd></div></dl><p className="field-help">This workflow is not connected yet. No project content is shown here. Demo workflow previews are available after signing out and choosing DEMO.</p><Button onClick={refreshAccess}>Refresh project access</Button></div>;
   };
@@ -116,5 +118,5 @@ function Workspace({ page, navigate, onLogout, renderProjectPage }: { page: Excl
     <aside ref={sidebarRef} inert={compact && !mobileOpen} className={`sidebar ${mobileOpen ? 'is-open' : ''}`}><div className="brand"><span>relay<span className="brand-dot">.</span></span><Button variant="ghost" className="mobile-close icon-button" aria-label="Close navigation" onClick={() => setMobileOpen(false)}><X size={18} /></Button></div>
       {selected && !loading ? <ProjectNavigation mode="live" projects={projects} selected={selected} role={selected.role} page={page} onSelect={select} onNavigate={go} onProjects={() => go('projects')} /> : <button className="workspace-nav" onClick={() => go('projects')}>All projects</button>}
       <div className="sidebar-bottom"><Button onClick={refreshAccess}>Refresh access</Button><Button onClick={onLogout}>Sign out</Button><p className="sidebar-demo-help">{state.user?.email}</p></div>
-    </aside><div className="app-body" inert={mobileOpen}><header className="topbar"><Button variant="ghost" className="mobile-menu icon-button" aria-label="Open navigation" aria-expanded={mobileOpen} onClick={() => setMobileOpen(true)}><Menu size={19} /></Button><nav className="breadcrumbs" aria-label="Breadcrumb"><button onClick={() => go('projects')}>Projects</button>{selected && !loading && !selectionLoading && <span>{selected.name} · {roleLabels[selected.role]}</span>}</nav><span className="topbar-demo">LIVE</span><ThemeToggle /></header><main id="main" tabIndex={-1}>{content()}</main></div></>;
+    </aside><div className="app-body" inert={mobileOpen}><header className="topbar"><Button variant="ghost" className="mobile-menu icon-button" aria-label="Open navigation" aria-expanded={mobileOpen} onClick={() => setMobileOpen(true)}><Menu size={19} /></Button><nav className="breadcrumbs" aria-label="Breadcrumb"><button onClick={() => go('projects')}>Projects</button>{selected && !loading && !selectionLoading && <span>{selected.name} · {roleLabels[selected.role]}</span>}</nav><span className="topbar-demo">LIVE</span><ThemeToggle /></header><main id="main" tabIndex={-1}>{content()}{page === 'sources' && selected && !error && <div hidden={loading || selectionLoading} inert={loading || selectionLoading}><LiveSourceManager project={selected} api={api} refreshAccess={refreshAccess} /></div>}</main></div></>;
 }

@@ -1,0 +1,12 @@
+.live-sources { overflow-wrap: anywhere; }
+.live-sources input[type="file"] { display: block; max-width: 100%; min-height: 44px; color: var(--color-text); }
+.live-sources form .button { margin-top: 16px; }
+.live-source-list { list-style: none; padding: 0; }
+.live-source-list li { padding-bottom: 16px; border-bottom: 1px solid var(--color-line); }
+.live-sources details { margin-top: 12px; }
+.live-sources summary { cursor: pointer; padding: 12px 0; min-height: 44px; }
+.live-sources pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; line-height: 1.7; padding: 16px; margin: 12px 0; border: 1px solid var(--color-line); background: var(--color-surface); color: var(--color-text); border-radius: 6px; }
+.live-source-detail { margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--color-line); }
+.live-source-detail h2, .live-source-detail h3, .live-source-detail h4 { margin: 24px 0 12px; }
+.live-sources .managed-source-row > span { min-width: 0; }
+@media (max-width: 700px) { .live-sources .feature-section-heading { flex-wrap: wrap; gap: 12px; } }

@@ -67,9 +67,13 @@ export class RelayApi {
       }
     }
     if (!response.ok) {
-      const error = (body as { error?: { code?: unknown } })?.error;
+      const error = (body as { error?: { code?: unknown; message?: unknown } })?.error;
       const code = typeof error?.code === 'string' ? error.code : 'REQUEST_FAILED';
-      throw new ApiError(response.status, code, messages[code] ?? `Relay could not complete the request (${response.status}). Please retry.`);
+      // Source validation messages are server-provided text, never HTML. Keep auth messages unchanged.
+      const sourceMessage = /^\/api\/projects\/[^/]+\/sources(?:\/|$)/.test(path)
+        && ['INVALID_INPUT', 'SOURCE_EXISTS', 'PAYLOAD_TOO_LARGE', 'PUBLIC_REPOSITORY_REQUIRED', 'GITHUB_NOT_FOUND', 'GITHUB_FORBIDDEN', 'GITHUB_RATE_LIMITED', 'GITHUB_IMPORT_TOO_LARGE', 'GITHUB_UNAVAILABLE'].includes(code)
+        && typeof error?.message === 'string' && error.message.trim() ? error.message.slice(0, 1000) : undefined;
+      throw new ApiError(response.status, code, sourceMessage ?? messages[code] ?? `Relay could not complete the request (${response.status}). Please retry.`);
     }
     return body as T;
   }
