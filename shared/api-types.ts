@@ -25,6 +25,8 @@ export interface ProjectMember extends Timestamps {
 }
 export interface RegisterRequest { email: string; password: string; name?: string }
 export interface LoginRequest { email: string; password: string }
+/** Supabase access token exchanged once for an HttpOnly Relay session. */
+export interface SupabaseSessionRequest { accessToken: string }
 export interface CreateProjectRequest { name: string; description?: string }
 export interface AddMemberRequest { email: string; role: ProjectRole }
 export interface ImportSourceRequest {
@@ -130,6 +132,7 @@ export interface HandoverListQuery { beforeVersion?: number; limit?: number }
 export interface HandoverDetailQuery { receiptCursor?: UUID; receiptLimit?: number }
 export type ErrorCode =
   | "INVALID_INPUT" | "UNAUTHENTICATED" | "INVALID_CREDENTIALS" | "FORBIDDEN" | "NOT_FOUND" | "INTERNAL_ERROR"
+  | "AUTH_MODE_DISABLED" | "EMAIL_UNVERIFIED" | "IDENTITY_CONFLICT" | "AUTH_UNAVAILABLE"
   | "RATE_LIMITED" | "REGISTRATION_FAILED" | "USER_NOT_FOUND" | "MEMBERSHIP_EXISTS" | "LAST_REVIEWER"
   | "SOURCE_EXISTS" | "PAYLOAD_TOO_LARGE" | "PUBLIC_REPOSITORY_REQUIRED" | "GITHUB_FORBIDDEN" | "GITHUB_NOT_FOUND"
   | "GITHUB_RATE_LIMITED" | "GITHUB_IMPORT_TOO_LARGE" | "GITHUB_UNAVAILABLE" | "INPUT_TOO_LARGE" | "SOURCE_CHANGED"
@@ -152,6 +155,7 @@ export interface ApiContracts {
   "GET /api/health": Contract<never, HealthResponse>;
   "POST /api/auth/register": Contract<RegisterRequest, { user: User }, never, 201>;
   "POST /api/auth/login": Contract<LoginRequest, { user: User }>;
+  "POST /api/auth/supabase-session": Contract<SupabaseSessionRequest, { user: User }>;
   "POST /api/auth/logout": Contract<never, void, never, 204>;
   "GET /api/auth/me": Contract<never, { user: User }>;
   "POST /api/projects": Contract<CreateProjectRequest, { project: Project }, never, 201>;

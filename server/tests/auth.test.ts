@@ -63,6 +63,7 @@ test("registration hashes passwords and tokens, returns a safe user, and authent
     assert.equal(response.status, 201);
     assert.deepEqual(Object.keys(response.body.user).sort(), ["createdAt", "email", "id", "name"]);
     const user = await db.user.findUniqueOrThrow({ where: { id: response.body.user.id } });
+    assert.ok(user.passwordHash);
     const [, algorithm, version, parameters] = user.passwordHash.split("$");
     assert.equal(algorithm, "argon2id");
     assert.equal(version, "v=19");

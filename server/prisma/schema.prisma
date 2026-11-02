@@ -20,7 +20,8 @@ model User {
   id           String          @id @default(uuid()) @db.Uuid
   email        String          @unique
   name         String?
-  passwordHash String
+  passwordHash String?
+  supabaseUserId String?        @unique @db.Uuid
   createdAt    DateTime        @default(now()) @db.Timestamptz(3)
   updatedAt    DateTime        @updatedAt @db.Timestamptz(3)
   memberships  ProjectMember[]

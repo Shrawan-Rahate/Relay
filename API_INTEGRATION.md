@@ -6,7 +6,11 @@ Contract source: the current routers/serializers in `server/src/{app,auth,projec
 
 Default API origin: `http://localhost:4000` (`PORT` can override). Prefix `/api`; no version prefix. UUIDs are strings; dates are ISO strings, never JavaScript `Date` objects. JSON requests use `Content-Type: application/json`; validated object schemas reject unknown body fields. JSON parser limit is 1 MiB. Success bodies are endpoint-specific wrappers, not a common `data` envelope. On `204`, do not call `response.json()`.
 
-Use `credentials: "include"` for fetch. Register/login set `relay_session`, an HttpOnly, SameSite=Lax cookie scoped to `/api`, lasting seven days; Secure in production. JavaScript must not read/store its value. There is no bearer token, refresh endpoint, or CSRF-token endpoint. `/auth/me` restores the current user; `401` on protected routes clears the cookie. Logout revokes that session and returns `204`, including when no session exists.
+Use `credentials: "include"` for fetch. Register/login or Supabase session exchange set `relay_session`, an HttpOnly, SameSite=Lax cookie scoped to `/api`, lasting seven days; Secure in production. JavaScript must not read/store its value. Protected Relay routes accept only Relay cookies; they do not accept Supabase bearer tokens. There is no Relay refresh or CSRF-token endpoint. `/auth/me` restores the current user; `401` on protected routes clears the cookie. Logout revokes that session and returns `204`, including when no session exists.
+
+`RELAY_AUTH_MODE=legacy` (default) enables register/login and disables Supabase exchange. `RELAY_AUTH_MODE=supabase` enables only `POST /auth/supabase-session` with strict JSON `{accessToken: string}` (1–16,384 characters), returning `200 {user: User}`. Supabase handles email/password signup, login, verification and refresh. Relay validates the access token against its configured Supabase Auth server and requires `email_confirmed_at`; client identity, role and verification metadata are never authoritative. Invalid/expired identities return `401 INVALID_CREDENTIALS`; unconfirmed email returns `403 EMAIL_UNVERIFIED`; unavailable verification returns `503 AUTH_UNAVAILABLE`. Disabled credential endpoints return `404 AUTH_MODE_DISABLED`. Existing Relay sessions continue to work across mode changes; Supabase-linked users cannot use legacy password login even after a mode switch.
+
+First exchange provisions a Relay user without project memberships, keyed by immutable Supabase UUID. An email already held by another Relay user returns `409 IDENTITY_CONFLICT` without merging or altering either account. Existing users need a separately reviewed identity migration; there is no automatic or public linking endpoint. Later exchanges for a linked UUID retain the Relay ID, stored email and all records/roles even when Supabase email changes. See [backend auth configuration and operational boundaries](server/docs/auth.md).
 
 CORS allows credentials for `CLIENT_ORIGIN` (default `http://localhost:5173`). Auth/project mutations reject a supplied foreign `Origin` with `403`. Use a same-site deployment or proxy compatible with the Lax cookie; CORS alone does not permit cross-site cookies. Auth/project data uses `Cache-Control: no-store` (origin rejection occurs before this header in auth routes).
 
@@ -26,6 +30,7 @@ Paths below are relative to `/api`. `P` = `/projects/:id`; `A` = `P/gaps/:gapId/
 | GET `/health` | Public | `{status:"ok", service:"relay-api", timestamp}` |
 | POST `/auth/register` | Public | `RegisterRequest` → `201 {user: User}` |
 | POST `/auth/login` | Public | `LoginRequest` → `{user: User}` |
+| POST `/auth/supabase-session` | Public, Supabase mode | `SupabaseSessionRequest` → `{user: User}`, Relay session cookie |
 | POST `/auth/logout` | Public | No body → `204` |
 | GET `/auth/me` | U | `{user: User}` |
 | POST `/projects` | U | `CreateProjectRequest` → `201 {project: Project}`; creator becomes R |
@@ -109,13 +114,13 @@ Handled errors use `{error:{code,message}}`; extraction POST can additionally re
 | --- | --- |
 | 400 | `INVALID_INPUT`, `INVALID_EVIDENCE`; correct fields/quotes; no field-level error map |
 | 401 | `UNAUTHENTICATED`, `INVALID_CREDENTIALS`; restore login state |
-| 403 | `FORBIDDEN`, `PUBLIC_REPOSITORY_REQUIRED`, `GITHUB_FORBIDDEN`; role/origin/public-repository restriction |
-| 404 | `NOT_FOUND`, `USER_NOT_FOUND`, `GITHUB_NOT_FOUND`; inaccessible and absent project resources are intentionally indistinguishable |
-| 409 | `REGISTRATION_FAILED`, `MEMBERSHIP_EXISTS`, `LAST_REVIEWER`, `SOURCE_EXISTS`, `SOURCE_CHANGED`, `ANSWER_ALREADY_REVIEWED`, `GAP_DISMISSED`, `INVALID_APPROVED_CONTENT`, `VERSION_LIMIT`; refresh relevant state before retry |
+| 403 | `FORBIDDEN`, `EMAIL_UNVERIFIED`, `PUBLIC_REPOSITORY_REQUIRED`, `GITHUB_FORBIDDEN`; role/origin/email-confirmation/public-repository restriction |
+| 404 | `AUTH_MODE_DISABLED`, `NOT_FOUND`, `USER_NOT_FOUND`, `GITHUB_NOT_FOUND`; inaccessible and absent project resources are intentionally indistinguishable |
+| 409 | `IDENTITY_CONFLICT` (account review required; never merge by email), `REGISTRATION_FAILED`, `MEMBERSHIP_EXISTS`, `LAST_REVIEWER`, `SOURCE_EXISTS`, `SOURCE_CHANGED`, `ANSWER_ALREADY_REVIEWED`, `GAP_DISMISSED`, `INVALID_APPROVED_CONTENT`, `VERSION_LIMIT`; refresh relevant state before retry |
 | 413 | `PAYLOAD_TOO_LARGE`, `INPUT_TOO_LARGE`, `GITHUB_IMPORT_TOO_LARGE`, `SCAN_TOO_LARGE`, `HANDOVER_TOO_LARGE`; reduce input. JSON parser overflow instead uses `INVALID_INPUT` |
-| 429 | `RATE_LIMITED`, `GITHUB_RATE_LIMITED`; back off. Login 10 attempts/15 min; registration 10/hour per peer IP, with standard rate-limit headers |
+| 429 | `RATE_LIMITED`, `GITHUB_RATE_LIMITED`; back off. Login/session exchange 10 attempts/15 min; registration 10/hour per peer IP, with standard rate-limit headers |
 | 502 | `GITHUB_UNAVAILABLE`, `INVALID_AI_OUTPUT`, `UNGROUNDED_AI_OUTPUT`, `AI_EXTRACTION_FAILED`; show safe error, no confirmed data inferred |
-| 503 | `AI_NOT_CONFIGURED`, `AI_CONFIGURATION_ERROR`; server configuration required |
+| 503 | `AUTH_UNAVAILABLE` (verification unavailable; retry later), `AI_NOT_CONFIGURED`, `AI_CONFIGURATION_ERROR`; server configuration required |
 | 504 | `AI_TIMEOUT`; extraction failed, not queued |
 | 500 | `INTERNAL_ERROR`; generic safe failure |
 
