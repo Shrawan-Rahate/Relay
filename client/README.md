@@ -1,11 +1,12 @@
 # Relay frontend
 
-A local, demo-only design foundation built with React, Vite, TypeScript, and Tailwind CSS. No API calls or authentication are implemented.
+A React, Vite, TypeScript and Tailwind client with live Supabase authentication and Relay project access. The original workflow previews remain available in explicitly separate DEMO mode.
 
 ```sh
 cd client
 npm ci
 npm run dev
+npm test
 npm run typecheck
 npm run build
 ```
@@ -26,7 +27,11 @@ There are four source fixtures, five open demo questions, and nine exact evidenc
 
 ## API integration handoff
 
-Read `../API_INTEGRATION.md` before wiring services. Replace fixture data at the page boundary, preserve `UNVERIFIED` claim semantics, and fetch source/document evidence using the contract URLs with credentials. Fixture IDs are intentionally prefixed `demo-`, not valid API UUIDs. Do not send them to live endpoints. Source display metadata and evidence arrays are view models, not additional API fields. Do not infer totals from paginated API responses or treat approved answers as automatically resolved gaps.
+Read [AUTH_INTEGRATION.md](AUTH_INTEGRATION.md) for public client configuration, required backend configuration, confirmation callbacks, session semantics and the integration boundaries. Live login is the default; `VITE_RELAY_MODE=demo` or the explicit Explore DEMO action opens previews without starting auth/API requests. Missing live configuration shows a configuration error and never silently enables demo or signs anyone in.
+
+Read `../API_INTEGRATION.md` before wiring workflow services. `src/lib/api.ts` is the shared credentialed transport; `useAuth()` supplies Relay identity and the same API instance. `LiveApp` provides an optional `renderProjectPage({project,page,api,refreshAccess})` integration point after backend membership and navigation permission checks. Project list/create/selection and roles are live. Sources, extraction, clarification, review and handover workflow content is not connected by this auth change; live pages explicitly show that boundary. The original workflow UI and local previews are preserved in `DemoApp` and never rendered as live data.
+
+Replace fixture data at the workflow page boundary, preserve `UNVERIFIED` claim semantics, and fetch source/document evidence using contract URLs with credentials. Fixture IDs are intentionally prefixed `demo-`, not valid API UUIDs. Do not send them to live endpoints. Source display metadata and evidence arrays are view models, not additional API fields. Do not infer totals from paginated API responses or treat approved answers as automatically resolved gaps.
 
 ## Design references
 

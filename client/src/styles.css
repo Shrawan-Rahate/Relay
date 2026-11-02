@@ -2,6 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
+.mode-return { position: fixed; bottom: 18px; right: 18px; z-index: 50; box-shadow: 0 2px 12px #0002; }
+
 :root {
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   color-scheme: light;
@@ -551,4 +553,75 @@ button:disabled, button:disabled:hover {
 
 [aria-invalid="true"], [aria-invalid="true"]:hover:not(:disabled) {
   border-color: var(--color-error);
+}
+
+/* Live auth styles stay scoped away from workflow and demo pages. */
+.relay-auth-layout { min-height: 100vh; min-height: 100svh; display: flex; flex-direction: column; background: var(--color-canvas); }
+.relay-auth-header { display: flex; align-items: center; justify-content: space-between; gap: 24px; width: 100%; max-width: 1440px; margin: 0 auto; padding: 28px 40px; }
+.relay-auth-brand { display: inline-flex; align-items: center; gap: 10px; color: var(--color-text); text-decoration: none; border-radius: 5px; }
+.relay-auth-brand > svg { color: var(--color-primary); }
+.relay-auth-brand > span { font-size: 32px; font-weight: 600; letter-spacing: -1.6px; line-height: 1; }
+.relay-auth-stage { flex: 1; display: grid; align-items: center; justify-items: center; width: 100%; min-width: 0; padding: 28px 24px 40px; }
+.relay-auth-stage:focus, .relay-auth-heading h1:focus { outline: none; }
+.relay-auth-content { width: min(100%, 448px); min-width: 0; }
+.relay-auth-card { width: 100%; min-width: 0; padding: 36px; border: 1px solid var(--color-line); border-radius: 16px; background: var(--color-surface); box-shadow: 0 8px 32px -16px var(--color-shadow); }
+.relay-auth-heading { margin-bottom: 28px; }
+.relay-auth-eyebrow { display: block; color: var(--color-link); font-size: 11px; font-weight: 600; letter-spacing: .1em; line-height: 1.6; }
+.relay-auth-heading h1 { margin-top: 12px; font-size: clamp(26px, 5vw, 30px); letter-spacing: -1px; line-height: 1.25; }
+.relay-auth-heading > p { margin-top: 10px; font-size: 15px; line-height: 1.65; }
+.relay-auth-fields { gap: 20px; border: 0; padding: 0; margin: 0; }
+.relay-auth-fields .field-label { font-size: 14px; margin-bottom: 8px; }
+.relay-auth-optional { color: var(--color-muted); font-weight: 400; }
+.relay-auth-fields .text-input { min-height: 48px; border-radius: 7px; }
+.relay-auth-fields .field-help { margin-top: 8px; font-size: 13px; line-height: 1.6; }
+.relay-auth-fields .field-error { margin-top: 7px; line-height: 1.6; }
+.relay-auth-password { position: relative; }
+.relay-auth-password .text-input { padding-right: 50px; }
+.relay-auth-visibility { position: absolute; right: 3px; top: 3px; display: grid; place-items: center; width: 42px; height: 42px; padding: 0; border: 0; border-radius: 5px; background: transparent; color: var(--color-muted); }
+.relay-auth-visibility:hover { color: var(--color-text); background: var(--color-hover); }
+.relay-auth-submit { width: 100%; min-height: 48px; margin-top: 4px; }
+.relay-auth-fine-print { margin-top: 16px; font-size: 13px; text-align: center; line-height: 1.65; }
+.relay-auth-switch { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; column-gap: 6px; margin-top: 26px; padding-top: 22px; border-top: 1px solid var(--color-line); font-size: 14px; color: var(--color-muted); }
+.relay-auth-switch a, .relay-auth-footer button { display: inline-flex; align-items: center; gap: 5px; min-height: 44px; color: var(--color-link); font-weight: 500; text-decoration: none; border-radius: 4px; }
+.relay-auth-switch a:hover, .relay-auth-resend button:hover, .relay-auth-footer button:hover { color: var(--color-link-hover); text-decoration: underline; }
+.relay-auth-switch a[aria-disabled="true"] { color: var(--color-disabled-text); cursor: not-allowed; }
+.relay-auth-resend { display: flex; align-items: center; flex-direction: column; margin-top: 14px; color: var(--color-muted); font-size: 13px; }
+.relay-auth-resend button { color: var(--color-link); min-height: 44px; border-radius: 4px; font-size: 13px; }
+.relay-auth-footer { margin: 16px auto 0; text-align: center; font-size: 13px; color: var(--color-muted); }
+.relay-auth-footer button { margin-left: 6px; font-size: 13px; }
+.relay-auth-footer p { font-size: 12px; line-height: 1.6; }
+.relay-auth-message { display: flex; align-items: flex-start; gap: 10px; margin: 0 0 22px; padding: 14px; border: 1px solid var(--color-control-border); border-radius: 8px; background: var(--color-canvas); color: var(--color-link); overflow-wrap: anywhere; }
+.relay-auth-message > svg { margin-top: 3px; }
+.relay-auth-message p, .relay-auth-message strong { font-size: 14px; line-height: 1.65; }
+.relay-auth-message strong { display: block; font-weight: 500; color: var(--color-text); margin-bottom: 4px; }
+.relay-auth-message .button { margin-top: 12px; width: 100%; font-size: 14px; }
+.relay-auth-error { border-color: var(--color-error); color: var(--color-error); }
+.relay-auth-error:focus { outline: 2px solid var(--color-focus); outline-offset: 3px; }
+.relay-auth-verification { text-align: center; }
+.relay-auth-mail-icon { display: inline-flex; align-items: center; justify-content: center; width: 58px; height: 58px; margin: 0 0 18px; border: 1px solid var(--color-line); border-radius: 14px; background: var(--color-canvas); color: var(--color-link); }
+.relay-auth-verification h2 { font-size: 20px; margin-bottom: 10px; }
+.relay-auth-verification p { font-size: 14px; line-height: 1.7; }
+.relay-auth-verification .relay-auth-email { color: var(--color-text); font-weight: 500; overflow-wrap: anywhere; margin: 4px 0 16px; }
+.relay-auth-verification .relay-auth-submit { margin-top: 24px; }
+.relay-auth-verification .relay-auth-fine-print { font-size: 13px; margin-top: 16px; }
+.relay-auth-progress { margin-top: 14px; font-size: 13px; text-align: center; }
+.relay-auth-baseline { padding: 12px 20px 24px; text-align: center; color: var(--color-muted); font-size: 10px; letter-spacing: .16em; }
+.relay-auth-restoring { max-width: 448px; text-align: center; padding-block: 52px; }
+.relay-auth-restoring h1 { font-size: 26px; margin: 18px 0 12px; }
+.relay-auth-skip { position: fixed; top: -80px; left: 16px; padding: 12px 18px; z-index: 100; border-radius: 6px; background: var(--color-surface); color: var(--color-link); }
+.relay-auth-skip:focus { top: 12px; }
+.relay-auth-spinner { animation: relay-auth-spin 1s linear infinite; }
+@keyframes relay-auth-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .relay-auth-spinner { animation: none; } }
+@media (max-width: 600px) {
+  .relay-auth-header { padding: 20px 22px; }
+  .relay-auth-stage { padding: 20px 16px 28px; }
+  .relay-auth-card { padding: 28px 24px; border-radius: 12px; }
+  .relay-auth-heading { margin-bottom: 24px; }
+  .relay-auth-baseline { padding-bottom: 20px; }
+}
+@media (max-width: 360px) {
+  .relay-auth-card { padding: 24px 18px; }
+  .relay-auth-header { padding-inline: 18px; }
+  .relay-auth-eyebrow { font-size: 10px; }
 }

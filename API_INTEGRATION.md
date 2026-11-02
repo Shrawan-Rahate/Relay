@@ -2,6 +2,8 @@
 
 Contract source: the current routers/serializers in `server/src/{app,auth,projects,sources,extractions,gaps,clarifications,reviews,handovers}.ts`, `evidence.ts`, `review-state.ts`, and scalar fields in `server/prisma/schema.prisma`. Wire types and the full endpoint map are in [shared/api-types.ts](shared/api-types.ts). They are standalone browser types, without Prisma or server imports; they do not validate runtime JSON.
 
+Client auth and workflow handoff: [client/AUTH_INTEGRATION.md](client/AUTH_INTEGRATION.md). Live auth uses the shared credentialed `RelayApi` and `useAuth()` context; backend-derived project access gates the `LiveApp.renderProjectPage` boundary. Workflow fixtures remain isolated in DEMO mode.
+
 ## Transport and session
 
 Default API origin: `http://localhost:4000` (`PORT` can override). Prefix `/api`; no version prefix. UUIDs are strings; dates are ISO strings, never JavaScript `Date` objects. JSON requests use `Content-Type: application/json`; validated object schemas reject unknown body fields. JSON parser limit is 1 MiB. Success bodies are endpoint-specific wrappers, not a common `data` envelope. On `204`, do not call `response.json()`.

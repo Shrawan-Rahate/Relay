@@ -1,0 +1,16 @@
+.live-overview { overflow-wrap: anywhere; }
+.live-overview .page-heading .badge { margin-top: 16px; }
+.live-overview-eyebrow { color: var(--color-muted); font-size: 14px; margin-bottom: 12px; }
+.live-overview-note { color: var(--color-muted); line-height: 1.7; margin: 20px 0 28px; }
+.live-overview-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.live-overview-card { min-width: 0; border: 1px solid var(--color-line); border-radius: 8px; background: var(--color-surface); padding: 24px; }
+.live-overview-card h2 { font-size: 20px; line-height: 1.4; margin-bottom: 16px; }
+.live-overview-card p { color: var(--color-muted); line-height: 1.7; margin-top: 16px; }
+.live-overview .handover-banner > div { min-width: 0; }
+.live-overview .handover-banner .button { flex-shrink: 0; }
+@media (max-width: 700px) {
+  .live-overview-grid { grid-template-columns: minmax(0, 1fr); }
+  .live-overview .handover-banner { align-items: stretch; flex-direction: column; padding: 20px; }
+  .live-overview .handover-banner .button { white-space: normal; }
+  .live-overview-card { padding: 20px; }
+}
