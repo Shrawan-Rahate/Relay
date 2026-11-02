@@ -56,7 +56,8 @@ export class RelayApi {
         ...init, headers, credentials: 'include', cache: 'no-store',
         signal: init.signal ?? AbortSignal.timeout(15_000),
       });
-    } catch {
+    } catch (error) {
+      if (error instanceof Error && error.name === 'TimeoutError') throw new ApiError(0, 'REQUEST_TIMEOUT', 'The Relay request timed out.');
       throw new ApiError(0, 'NETWORK_ERROR', 'Unable to reach Relay. Check your connection and retry.');
     }
     if (response.status === 401 && notifyUnauthorized && epoch === this.sessionEpoch) this.invalidateSession();
