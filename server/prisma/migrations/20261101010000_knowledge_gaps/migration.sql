@@ -1,9 +1,34 @@
--- Apply only to Relay development databases; preserve all existing tables and data.
+-- Apply only to Relay databases; preserve all existing tables and data.
 DO $$
+DECLARE
+  v_prereq_count integer;
 BEGIN
-  IF current_database() NOT IN ('relay_dev', 'relay_shadow_dev') THEN
-    RAISE EXCEPTION 'Knowledge gap migration requires a Relay database';
+  IF current_database() IN ('relay_dev', 'relay_shadow_dev') THEN
+    RETURN;
   END IF;
+
+  IF current_database() = 'railway' THEN
+    IF to_regclass('"_prisma_migrations"') IS NULL
+       OR to_regclass('"ExtractionRun"') IS NULL
+       OR to_regclass('"KnowledgeClaim"') IS NULL
+       OR to_regclass('"ClaimEvidence"') IS NULL THEN
+      RAISE EXCEPTION 'Knowledge gap migration rejected: Relay prerequisite schema is missing in database %', current_database();
+    END IF;
+
+    SELECT count(*) INTO v_prereq_count
+    FROM "_prisma_migrations"
+    WHERE migration_name = '20261101000000_evidence_extraction'
+    AND finished_at IS NOT NULL
+    AND rolled_back_at IS NULL;
+
+    IF v_prereq_count < 1 THEN
+      RAISE EXCEPTION 'Knowledge gap migration rejected: prerequisite migration 20261101000000_evidence_extraction is incomplete in database %', current_database();
+    END IF;
+
+    RETURN;
+  END IF;
+
+  RAISE EXCEPTION 'Knowledge gap migration requires a Relay database (current database: %)', current_database();
 END $$;
 
 -- CreateEnum

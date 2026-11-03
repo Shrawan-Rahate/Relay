@@ -1,9 +1,33 @@
--- Add published handover storage only on Relay development databases.
+-- Add published handover storage only on Relay databases.
 DO $$
+DECLARE
+  v_prereq_count integer;
 BEGIN
-  IF current_database() NOT IN ('relay_dev', 'relay_shadow_dev') THEN
-    RAISE EXCEPTION 'Verified handover migration requires a Relay database';
+  IF current_database() IN ('relay_dev', 'relay_shadow_dev') THEN
+    RETURN;
   END IF;
+
+  IF current_database() = 'railway' THEN
+    IF to_regclass('"_prisma_migrations"') IS NULL
+       OR to_regclass('"ReviewDecision"') IS NULL
+       OR to_regclass('"ClarificationResponse"') IS NULL THEN
+      RAISE EXCEPTION 'Verified handover migration rejected: Relay prerequisite schema is missing in database %', current_database();
+    END IF;
+
+    SELECT count(*) INTO v_prereq_count
+    FROM "_prisma_migrations"
+    WHERE migration_name = '20261101030000_human_review'
+    AND finished_at IS NOT NULL
+    AND rolled_back_at IS NULL;
+
+    IF v_prereq_count < 1 THEN
+      RAISE EXCEPTION 'Verified handover migration rejected: prerequisite migration 20261101030000_human_review is incomplete in database %', current_database();
+    END IF;
+
+    RETURN;
+  END IF;
+
+  RAISE EXCEPTION 'Verified handover migration requires a Relay database (current database: %)', current_database();
 END $$;
 
 -- CreateTable

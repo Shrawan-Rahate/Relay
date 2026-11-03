@@ -1,9 +1,40 @@
--- Apply only to the local Relay databases; never reset or alter existing data.
+-- Apply only to Relay databases; never reset or alter existing data.
 DO $$
+DECLARE
+  v_prereq_count integer;
 BEGIN
-  IF current_database() NOT IN ('relay_dev', 'relay_shadow_dev') THEN
-    RAISE EXCEPTION 'Evidence extraction migration requires a Relay database';
+  IF current_database() IN ('relay_dev', 'relay_shadow_dev') THEN
+    RETURN;
   END IF;
+
+  IF current_database() = 'railway' THEN
+    IF to_regclass('"_prisma_migrations"') IS NULL
+       OR to_regclass('"User"') IS NULL
+       OR to_regclass('"Project"') IS NULL
+       OR to_regclass('"ProjectMember"') IS NULL
+       OR to_regclass('"Source"') IS NULL
+       OR to_regclass('"SourceDocument"') IS NULL THEN
+      RAISE EXCEPTION 'Evidence extraction migration rejected: Relay prerequisite schema is missing in database %', current_database();
+    END IF;
+
+    SELECT count(*) INTO v_prereq_count
+    FROM "_prisma_migrations"
+    WHERE migration_name IN (
+      '20261031194429_init_identity',
+      '20261031200941_init_sources',
+      '20261031201842_github_source_type'
+    )
+    AND finished_at IS NOT NULL
+    AND rolled_back_at IS NULL;
+
+    IF v_prereq_count < 3 THEN
+      RAISE EXCEPTION 'Evidence extraction migration rejected: prerequisite migrations are incomplete in database % (found % of 3)', current_database(), v_prereq_count;
+    END IF;
+
+    RETURN;
+  END IF;
+
+  RAISE EXCEPTION 'Evidence extraction migration requires a Relay database (current database: %)', current_database();
 END $$;
 
 -- CreateEnum
