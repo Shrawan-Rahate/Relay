@@ -111,22 +111,44 @@ test("strict runtime validation rejects provider-valid but invalid extraction re
   assert.equal(await db.knowledgeClaim.count({ where: { projectId: actor.projectId } }), 0);
 }));
 
-test("grounding and strict output reject fabricated quotes, citations, unrelated text and approval fields atomically", async () => scenario(async db => {
+test("grounding rejects ungrounded claims when zero valid claims remain, and schema violations fail atomically", async () => scenario(async db => {
   let output: unknown;
   const app = createApp(db, mockOptions(async () => ({ text: JSON.stringify(output) })));
   const actor = await fixture(db); const id = await source(app, actor);
-  for (const bad of [
+  const ungrounded = [
     { ...claim(id), evidence: [{ documentId: id, quote: "Ada owns Deployment." }] },
     claim(randomUUID()), { ...claim(id), text: "Sam owns deployment." },
     { ...claim(id), text: "decide to ship.", evidence: [{ documentId: id, quote: "We did not decide to ship." }] },
     { ...claim(id), evidence: [...claim(id).evidence, { documentId: id, quote: "Status is blocked." }] },
+  ];
+  const schemaInvalid = [
     { ...claim(id), status: "APPROVED" }, { ...claim(id), evidence: [] }, { ...claim(id), type: "OTHER" },
-  ]) {
+  ];
+  for (const bad of ungrounded) {
+    output = { claims: [bad] };
+    const res = await request(app).post(`/api/projects/${actor.projectId}/extractions`).set("Cookie", actor.cookie).send({ documentIds: [id] });
+    assert.equal(res.status, 502);
+    assert.equal(res.body.error.code, "UNGROUNDED_AI_OUTPUT");
+    assert.equal(res.body.run.status, "FAILED");
+    assert.ok(res.body.run.errorCode && res.body.run.completedAt);
+  }
+  for (const bad of schemaInvalid) {
     output = { claims: [claim(id), bad] };
     const res = await request(app).post(`/api/projects/${actor.projectId}/extractions`).set("Cookie", actor.cookie).send({ documentIds: [id] });
     assert.equal(res.status, 502);
+    assert.equal(res.body.error.code, "INVALID_AI_OUTPUT");
     assert.equal(res.body.run.status, "FAILED");
     assert.ok(res.body.run.errorCode && res.body.run.completedAt);
+  }
+  for (const bad of ungrounded) {
+    output = { claims: [claim(id), bad] };
+    const res = await request(app).post(`/api/projects/${actor.projectId}/extractions`).set("Cookie", actor.cookie).send({ documentIds: [id] });
+    assert.equal(res.status, 201);
+    assert.equal(res.body.run.status, "SUCCEEDED");
+    assert.equal(res.body.run.claims.length, 1);
+    assert.equal(res.body.run.claims[0].text, claim(id).text);
+    await db.knowledgeClaim.deleteMany({ where: { projectId: actor.projectId } });
+    await db.extractionRun.deleteMany({ where: { projectId: actor.projectId } });
   }
   assert.equal(await db.knowledgeClaim.count({ where: { projectId: actor.projectId } }), 0);
 }));
