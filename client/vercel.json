@@ -4,7 +4,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://RAILWAY_URL_PENDING/api/:path*"
+      "destination": "https://relay-production-29bf.up.railway.app/api/:path*"
     },
     {
       "source": "/(.*)",
