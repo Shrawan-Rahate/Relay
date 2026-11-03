@@ -80,7 +80,7 @@ export function createExtractionsRouter(db: ExtractionsDatabase, options: Extrac
     await member(db, projectId, userId, true);
     const parsed = inputSchema.safeParse(req.body);
     if (!parsed.success) throw new ExtractionError(400, "INVALID_INPUT", "Select 1 to 20 unique document IDs");
-    const model = options.geminiModel ?? process.env.GEMINI_MODEL ?? "gemini-2.5-flash";
+    const model = options.geminiModel ?? process.env.GEMINI_MODEL ?? "gemini-3.5-flash-lite";
     if (!/^[a-zA-Z0-9._/-]{1,200}$/.test(model)) throw new ExtractionError(503, "AI_CONFIGURATION_ERROR", "GEMINI_MODEL is invalid");
     const { documents, run } = await locked(db, projectId, userId, async tx => {
       const documents = await tx.sourceDocument.findMany({ where: { projectId, id: { in: parsed.data.documentIds } }, orderBy: { id: "asc" } });

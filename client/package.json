@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "test": "node --test tests/*.test.mjs && vitest run tests/*.test.ts tests/*.test.tsx",
+    "test": "node --test tests/*.test.mjs && vitest run --exclude tests/*.test.mjs",
     "dev": "vite",
     "typecheck": "tsc --noEmit",
     "build": "tsc --noEmit && vite build",
