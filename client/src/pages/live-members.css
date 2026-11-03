@@ -1,0 +1,27 @@
+.live-members .member-form-card { margin-top: 24px; padding: 24px; border: 1px solid var(--color-line); border-radius: 8px; background: var(--color-surface); }
+.live-members .member-form-card header { max-width: 680px; }
+.live-members .member-form-card h3 { margin: 0; }
+.live-members .member-form-card header p { margin: 8px 0 0; color: var(--color-muted); line-height: 1.6; }
+.live-members .member-form-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(180px, 1fr); gap: 20px; padding: 0; margin: 20px 0 0; }
+.live-members .member-form-field { min-width: 0; }
+.live-members .member-form-field .field-label { display: block; margin: 0 0 8px; }
+.live-members .member-form-field .text-input { width: 100%; min-height: 48px; margin: 0; }
+.live-members .member-form-field .field-error { margin: 6px 0 0; }
+.live-members .member-form-field .field-error:empty { display: none; }
+.live-members .member-form-actions { grid-column: 1 / -1; display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 12px; }
+.live-members .member-form-actions .field-error { flex: 1; margin: 0; }
+.live-members .member-list li { align-items: flex-start; flex-wrap: nowrap; gap: 20px; padding: 20px 0; }
+.live-members .member-identity { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.live-members .member-identity > p { margin: 4px 0; }
+.live-members .member-identity summary { padding: 8px 0; }
+.live-members .member-identity dl { margin: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 16px; font-size: 14px; }
+.live-members .member-identity dt { color: var(--color-muted); }
+.live-members .member-identity dd { margin: 0; overflow-wrap: anywhere; }
+.live-members .member-list li > .button { flex-shrink: 0; }
+@media (max-width: 600px) {
+  .live-members .member-form-card { padding: 16px; }
+  .live-members .member-form-grid { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .live-members .member-form-actions { align-items: stretch; flex-direction: column; }
+  .live-members .member-list li { gap: 12px; }
+  .live-members .member-identity dl { grid-template-columns: minmax(0, 1fr); }
+}

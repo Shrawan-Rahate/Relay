@@ -58,6 +58,59 @@ test("extraction persists grounded unverified claims, provenance and member-read
   assert.equal((await request(app).get(`/api/projects/${actor.projectId}/extractions/${res.body.run.id}`).set("Cookie", reader.cookie)).status, 200);
 }));
 
+test("provider request uses a compact structured schema without costly validation constraints", async () => scenario(async db => {
+  let schema: any;
+  const app = createApp(db, mockOptions(async input => {
+    assert.equal(input.config.responseMimeType, "application/json");
+    schema = input.config.responseJsonSchema;
+    return { text: '{"claims":[]}' };
+  }));
+  const actor = await fixture(db); const id = await source(app, actor);
+  const res = await request(app).post(`/api/projects/${actor.projectId}/extractions`).set("Cookie", actor.cookie).send({ documentIds: [id] });
+  assert.equal(res.status, 201);
+  function check(node: any) {
+    for (const key of Object.keys(node)) assert.ok(["type", "properties", "required", "items", "enum"].includes(key), `Unexpected provider constraint: ${key}`);
+    if (node.properties) for (const child of Object.values(node.properties)) check(child);
+    if (node.items) check(node.items);
+  }
+  check(schema);
+  assert.equal(schema.type, "object");
+  assert.deepEqual(schema.required, ["claims"]);
+  assert.equal(schema.properties.claims.type, "array");
+  const item = schema.properties.claims.items;
+  assert.deepEqual(item.required, ["type", "text", "evidence"]);
+  assert.deepEqual(item.properties.type.enum, ["DECISION", "OWNER", "DEPENDENCY", "STATUS", "RISK"]);
+  assert.equal(item.properties.text.type, "string");
+  assert.equal(item.properties.evidence.type, "array");
+  assert.deepEqual(item.properties.evidence.items.required, ["documentId", "quote"]);
+  assert.equal(item.properties.evidence.items.properties.documentId.type, "string");
+  assert.equal(item.properties.evidence.items.properties.quote.type, "string");
+}));
+
+test("strict runtime validation rejects provider-valid but invalid extraction responses atomically", async () => scenario(async db => {
+  let output: unknown;
+  const app = createApp(db, mockOptions(async () => ({ text: JSON.stringify(output) })));
+  const actor = await fixture(db); const id = await source(app, actor);
+  const invalid = [
+    { claims: Array.from({ length: 51 }, () => claim(id)) },
+    { claims: [], approved: true },
+    ...[
+      { ...claim(id), evidence: Array.from({ length: 6 }, () => claim(id).evidence[0]) },
+      { ...claim(id), evidence: [{ documentId: "not-a-uuid", quote: claim(id).text }] },
+      { ...claim(id), evidence: [{ ...claim(id).evidence[0], approved: true }] },
+      ...["", "   ", "x".repeat(2001)].map(text => ({ ...claim(id), text })),
+      ...["", "   ", "x".repeat(4001)].map(quote => ({ ...claim(id), evidence: [{ documentId: id, quote }] })),
+    ].map(bad => ({ claims: [claim(id), bad] })),
+  ];
+  for (output of invalid) {
+    const res = await request(app).post(`/api/projects/${actor.projectId}/extractions`).set("Cookie", actor.cookie).send({ documentIds: [id] });
+    assert.equal(res.status, 502);
+    assert.equal(res.body.error.code, "INVALID_AI_OUTPUT");
+    assert.equal(res.body.run.status, "FAILED");
+  }
+  assert.equal(await db.knowledgeClaim.count({ where: { projectId: actor.projectId } }), 0);
+}));
+
 test("grounding and strict output reject fabricated quotes, citations, unrelated text and approval fields atomically", async () => scenario(async db => {
   let output: unknown;
   const app = createApp(db, mockOptions(async () => ({ text: JSON.stringify(output) })));

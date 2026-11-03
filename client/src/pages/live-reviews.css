@@ -1,0 +1,10 @@
+.live-reviews .review-queue-list { display: grid; gap: 10px; }
+.live-reviews .review-queue-item { display: flex; flex-direction: column; align-items: flex-start; text-align: left; padding: 16px; gap: 6px; white-space: normal; }
+.live-reviews .review-queue-item .field-help { margin: 0; }
+.live-reviews .review-form { margin: 24px 0; border-block: 1px solid var(--color-line); }
+.live-reviews .review-form fieldset { display: grid; gap: 16px; padding: 0; }
+.live-reviews .review-form legend { padding: 0 0 16px; }
+.live-reviews .review-form .field-help { margin: 8px 0 0; }
+.live-reviews .review-form .button { justify-self: start; }
+.live-reviews textarea { resize: vertical; }
+.live-reviews .review-document-link { display: inline-block; padding: 12px 0; text-decoration: underline; text-underline-offset: 3px; }

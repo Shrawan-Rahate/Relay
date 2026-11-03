@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import type { GapCategory, GapQuery, GapStatus, JsonValue, KnowledgeGap } from '../../../shared/api-types';
-import { Badge, Button } from '../components/ui';
+import type { GapCategory, GapQuery, GapStatus, KnowledgeGap } from '../../../shared/api-types';
+import { Button } from '../components/ui';
 import { LiveWorkflowBoundary, Provenance, useWorkflowTicket, WorkflowError, type WorkflowContext, type WorkflowProps } from '../components/LiveWorkflow';
+import FrozenEvidence from '../components/LiveGapEvidence';
 import { fetchGap, fetchGaps, gapCategories, scanGaps } from '../lib/workflow-api';
 
 export default function LiveKnowledgeGaps(props: WorkflowProps) {
@@ -67,16 +68,4 @@ function GapDetail({ context, gapId, close }: { context: WorkflowContext; gapId:
       {gap.claimLinks.map(link => <FrozenEvidence key={link.claimId} claimId={link.claimId} value={link.provenance} />)}
     </>}
   </section>;
-}
-function record(value: JsonValue | undefined): Record<string, JsonValue> | null {
-  return value !== null && typeof value === 'object' && !Array.isArray(value) ? value : null;
-}
-function FrozenEvidence({ claimId, value }: { claimId: string; value: JsonValue }) {
-  const data = record(value);
-  const evidence = Array.isArray(data?.evidence) ? data.evidence.map(record).filter((item): item is Record<string, JsonValue> => !!item && typeof item.quote === 'string' && typeof item.documentId === 'string') : [];
-  return <article className="live-evidence"><h4>Claim {claimId}</h4>{data?.claimStatus === 'UNVERIFIED' && <Badge>UNVERIFIED</Badge>}
-    {typeof data?.claimText === 'string' && <p className="preserve-text">{data.claimText}</p>}
-    {evidence.length ? evidence.map((item, index) => <div key={index}><p>Document: {String(item.documentId)}</p><blockquote>{String(item.quote)}</blockquote><Provenance value={item} /></div>) : <p>Structured evidence quotes are unavailable for this link. Inspect the recorded provenance below.</p>}
-    <Provenance value={value} />
-  </article>;
 }

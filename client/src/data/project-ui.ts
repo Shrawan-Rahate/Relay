@@ -18,6 +18,8 @@ export const projectPages: { id: ProjectPage; label: string; roles: ProjectRole[
   { id: 'project-detail', label: 'Project & members', roles: ['REVIEWER', 'OUTGOING', 'INCOMING'] },
 ];
 export function canViewPage(page: ProjectPage, role: RoleView): boolean { return role === 'ALL_DEMO' || !!projectPages.find(item => item.id === page)?.roles.includes(role); }
+// LIVE reviewers may inspect answers; keep the separate DEMO workflow unchanged.
+export function canViewLivePage(page: ProjectPage, role: ProjectRole): boolean { return page === 'handover' ? ['REVIEWER', 'OUTGOING', 'INCOMING'].includes(role) : page === 'clarifications' ? role === 'OUTGOING' || role === 'REVIEWER' : canViewPage(page, role); }
 export const canManageMembers = (role: RoleView) => role === 'ALL_DEMO' || role === 'REVIEWER';
 export type FieldErrors = Record<string, string>;
 export function emailIssue(email: string): string | null {

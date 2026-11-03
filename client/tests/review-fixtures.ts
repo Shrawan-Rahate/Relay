@@ -1,0 +1,8 @@
+import type { QueuedAnswer, ReviewDecision, ReviewRequest, ReviewResponse } from '../../shared/api-types';
+import { gap, ids, quote } from './workflow-fixtures';
+export const queued: QueuedAnswer = { id: ids.next, projectId: ids.project, gapId: ids.gap, authorId: ids.source, answerText: 'Outgoing answer', status: 'PENDING_REVIEW', createdAt: '2026-11-03T10:00:00Z', effectiveReviewStatus: 'PENDING_REVIEW', effectiveText: null, author: { id: ids.source, name: 'Ada' }, gap: { id: gap.id, category: gap.category, question: gap.question, status: gap.status }, evidence: [{ id: ids.evidence, responseId: ids.next, projectId: ids.project, documentId: ids.doc, quote, startOffset: 0, endOffset: quote.length, documentSha256: 'hash', createdAt: '2026-11-03T10:00:00Z' }] };
+export function reviewed(input: ReviewRequest): ReviewResponse {
+  const decision: ReviewDecision = { id: ids.run, projectId: ids.project, responseId: queued.id, reviewerId: ids.project, sequence: 1, action: input.action, correctedText: input.action === 'EDIT' ? input.correctedText : null, reason: input.reason ?? null, resolveGap: input.resolveGap ?? false, createdAt: '2026-11-03T11:00:00Z', reviewer: { id: ids.project, name: 'Reviewer' } };
+  const { author: _author, evidence: _evidence, gap: _gap, ...answer } = queued;
+  return { decision, answer: { ...answer, effectiveReviewStatus: { APPROVE: 'APPROVED', EDIT: 'EDITED', REJECT: 'REJECTED', DEFER: 'DEFERRED' }[input.action] as ReviewResponse['answer']['effectiveReviewStatus'], effectiveText: input.action === 'EDIT' ? input.correctedText : input.action === 'APPROVE' ? queued.answerText : null } };
+}

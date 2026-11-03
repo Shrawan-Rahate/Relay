@@ -28,7 +28,7 @@ function ScopedBoundary({ children, ...props }: WorkflowProps & { children: (con
   return children({ ...props, fail });
 }
 export function WorkflowError({ message, retry }: { message: string; retry?: () => void }) {
-  return message ? <div><p className="field-error" role="alert">{message}</p>{retry && <Button onClick={retry}>Retry loading</Button>}</div> : null;
+  return message ? <div><p className="field-error" role="alert">{message}</p>{retry && <Button type="button" onClick={retry}>Retry loading</Button>}</div> : null;
 }
 export function Provenance({ value }: { value: unknown }) {
   return <details><summary>Model and source provenance</summary><pre>{JSON.stringify(value, null, 2)}</pre></details>;
