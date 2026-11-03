@@ -7,7 +7,7 @@ BEGIN
     RETURN;
   END IF;
 
-  IF current_database() = 'railway' THEN
+  IF current_database() IN ('railway', 'railway_pzo0') THEN
     IF to_regclass('"_prisma_migrations"') IS NULL
        OR to_regclass('"ExtractionRun"') IS NULL
        OR to_regclass('"KnowledgeClaim"') IS NULL
